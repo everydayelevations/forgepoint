@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { runComparison } from '../../lib/comparisonEngine'
 import { DEMO_DESIGN, DEMO_INVOICE, DEMO_DESIGN_TEXT } from '../../lib/demoData'
 
-export const config = { api: { bodyParser: { sizeLimit: '20mb' } } }
+export const config = { api: { bodyParser: { sizeLimit: '20mb' } }, maxDuration: 60 }
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
