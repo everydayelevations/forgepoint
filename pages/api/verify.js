@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { runComparison } from '../../lib/comparisonEngine'
 import { DEMO_DESIGN, DEMO_INVOICE, DEMO_DESIGN_TEXT } from '../../lib/demoData'
 
-export const config = { api: { bodyParser: { sizeLimit: '20mb' } }, maxDuration: 60 }
+export const config = { api: { bodyParser: { sizeLimit: '1mb' } }, maxDuration: 60 }
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -18,11 +18,11 @@ RULES:
 Return ONLY valid JSON, no markdown:
 { "documentType": "design"|"invoice", "jobAddress": "string|null", "invoiceNumber": "string|null", "soNumber": "string|null", "items": [{ "sku": "WHS-B18", "description": "18\\" Base Cabinet HL", "qty": 1, "section": "sink wall", "itemType": "cabinet", "handed": "left", "price": 217.00, "source": "invoice" }] }`
 
-async function extractFromBase64(b64, docType) {
+async function extractFromUrl(url, docType) {
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514', max_tokens: 4000, system: EXTRACT_SYSTEM,
     messages: [{ role: 'user', content: [
-      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+      { type: 'document', source: { type: 'url', url } },
       { type: 'text', text: `Document type hint: ${docType}. Extract all cabinet line items.` }
     ]}]
   })
@@ -44,11 +44,11 @@ async function calcTrim(designText, designItems, invoiceItems) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   try {
-    const { demo, designB64, invoiceB64, designB64s, invoiceB64s, vendor = 'highland' } = req.body
+    const { demo, designUrls, invoiceUrls, vendor = 'highland' } = req.body
     let designExtracted, invoiceExtracted, rawDesignText
 
-    const designList  = designB64s?.length  ? designB64s  : (designB64  ? [designB64]  : [])
-    const invoiceList = invoiceB64s?.length ? invoiceB64s : (invoiceB64 ? [invoiceB64] : [])
+    const designList  = Array.isArray(designUrls)  ? designUrls  : []
+    const invoiceList = Array.isArray(invoiceUrls) ? invoiceUrls : []
 
     if (demo) {
       designExtracted  = { ...DEMO_DESIGN,  documentType: 'design'  }
@@ -56,8 +56,8 @@ export default async function handler(req, res) {
       rawDesignText = DEMO_DESIGN_TEXT
     } else if (designList.length && invoiceList.length) {
       const [designParts, invoiceParts] = await Promise.all([
-        Promise.all(designList.map(b  => extractFromBase64(b, 'design'))),
-        Promise.all(invoiceList.map(b => extractFromBase64(b, 'invoice'))),
+        Promise.all(designList.map(u  => extractFromUrl(u, 'design'))),
+        Promise.all(invoiceList.map(u => extractFromUrl(u, 'invoice'))),
       ])
       const firstNonEmpty = (arr) => arr.find(v => v) || null
       const joinUnique = (arr) => {
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
       }
       rawDesignText = ''
     } else {
-      return res.status(400).json({ error: 'Provide designB64s + invoiceB64s, or demo: true' })
+      return res.status(400).json({ error: 'Provide designUrls + invoiceUrls, or demo: true' })
     }
 
     const report = runComparison(designExtracted.items||[], invoiceExtracted.items||[], vendor)

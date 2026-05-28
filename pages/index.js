@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import Head from 'next/head'
+import { upload } from '@vercel/blob/client'
 
 const STATUS_CFG = {
   match:        { label: 'MATCH',    bg: '#D4EDDA', color: '#1A5C35' },
@@ -38,10 +39,11 @@ export default function Forgepoint() {
   const designRef  = useRef()
   const invoiceRef = useRef()
 
-  const MSGS = ['Reading PDFs...','Extracting SKUs with AI...','Matching line items...','Calculating trim quantities...','Building report...']
+  const MSGS = ['Uploading PDFs...','Extracting SKUs with AI...','Matching line items...','Calculating trim quantities...','Building report...']
 
-  async function toB64(file) {
-    return new Promise((res,rej) => { const r=new FileReader(); r.onload=e=>res(e.target.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file) })
+  async function uploadOne(file) {
+    const blob = await upload(file.name, file, { access: 'public', handleUploadUrl: '/api/blob-upload' })
+    return blob.url
   }
 
   async function call(body) {
@@ -61,11 +63,11 @@ export default function Forgepoint() {
 
   async function runVerify() {
     if (!designFiles.length || !invoiceFiles.length) return
-    const [designB64s, invoiceB64s] = await Promise.all([
-      Promise.all(designFiles.map(toB64)),
-      Promise.all(invoiceFiles.map(toB64)),
+    const [designUrls, invoiceUrls] = await Promise.all([
+      Promise.all(designFiles.map(uploadOne)),
+      Promise.all(invoiceFiles.map(uploadOne)),
     ])
-    await call({ designB64s, invoiceB64s, vendor })
+    await call({ designUrls, invoiceUrls, vendor })
   }
 
   async function exportExcel() {
