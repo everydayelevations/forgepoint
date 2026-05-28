@@ -24,8 +24,8 @@ const NAV_MODULES = [
 ]
 
 export default function Forgepoint() {
-  const [designFile, setDesignFile]   = useState(null)
-  const [invoiceFile, setInvoiceFile] = useState(null)
+  const [designFiles, setDesignFiles]   = useState([])
+  const [invoiceFiles, setInvoiceFiles] = useState([])
   const [vendor, setVendor]           = useState('highland')
   const [loading, setLoading]         = useState(false)
   const [loadingMsg, setLoadingMsg]   = useState('')
@@ -60,9 +60,12 @@ export default function Forgepoint() {
   async function runDemo() { await call({ demo:true, vendor }) }
 
   async function runVerify() {
-    if (!designFile||!invoiceFile) return
-    const [designB64, invoiceB64] = await Promise.all([toB64(designFile), toB64(invoiceFile)])
-    await call({ designB64, invoiceB64, vendor })
+    if (!designFiles.length || !invoiceFiles.length) return
+    const [designB64s, invoiceB64s] = await Promise.all([
+      Promise.all(designFiles.map(toB64)),
+      Promise.all(invoiceFiles.map(toB64)),
+    ])
+    await call({ designB64s, invoiceB64s, vendor })
   }
 
   async function exportExcel() {
@@ -269,22 +272,25 @@ export default function Forgepoint() {
 
               <div className="upload-grid">
                 {[
-                  { label:'2020 Design File', sub:'Drop PDF or click to browse', icon:'📐', file:designFile, ref:designRef, set:setDesignFile },
-                  { label:'QuickBooks Invoice', sub:'Drop PDF or click to browse', icon:'🧾', file:invoiceFile, ref:invoiceRef, set:setInvoiceFile },
-                ].map(({label,sub,icon,file,ref,set},idx) => (
-                  <div key={idx}
-                    className={`dropzone${file?' has':''}`}
-                    onClick={()=>ref.current?.click()}
-                    onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag')}}
-                    onDragLeave={e=>e.currentTarget.classList.remove('drag')}
-                    onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)set(f)}}
-                  >
-                    <div className="dz-icon">{file?'✅':icon}</div>
-                    <div className="dz-label">{file?file.name:label}</div>
-                    <div className="dz-sub">{file?`${(file.size/1024).toFixed(1)} KB`:sub}</div>
-                    <input ref={ref} type="file" accept=".pdf" style={{display:'none'}} onChange={e=>{if(e.target.files[0])set(e.target.files[0])}} />
-                  </div>
-                ))}
+                  { label:'2020 Design Files', sub:'Drop PDFs or click to browse — multiple OK', icon:'📐', files:designFiles, ref:designRef, set:setDesignFiles },
+                  { label:'Sales Estimates / Invoices', sub:'Drop PDFs or click to browse — multiple OK', icon:'🧾', files:invoiceFiles, ref:invoiceRef, set:setInvoiceFiles },
+                ].map(({label,sub,icon,files,ref,set},idx) => {
+                  const names = files.map(f=>f.name).join(', ')
+                  return (
+                    <div key={idx}
+                      className={`dropzone${files.length?' has':''}`}
+                      onClick={()=>ref.current?.click()}
+                      onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag')}}
+                      onDragLeave={e=>e.currentTarget.classList.remove('drag')}
+                      onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag');const fs=Array.from(e.dataTransfer.files).filter(f=>/\.pdf$/i.test(f.name));if(fs.length)set(fs)}}
+                    >
+                      <div className="dz-icon">{files.length?'✅':icon}</div>
+                      <div className="dz-label">{files.length ? `${files.length} file${files.length>1?'s':''} ready` : label}</div>
+                      <div className="dz-sub">{files.length ? (names.length>70?names.slice(0,68)+'…':names) : sub}</div>
+                      <input ref={ref} type="file" accept=".pdf" multiple style={{display:'none'}} onChange={e=>{const fs=Array.from(e.target.files);if(fs.length)set(fs)}} />
+                    </div>
+                  )
+                })}
               </div>
 
               <div className="controls">
@@ -295,7 +301,7 @@ export default function Forgepoint() {
                   <option value="ultracraft">UltraCraft</option>
                   <option value="waypoint">Waypoint</option>
                 </select>
-                <button className="btn btn-primary" disabled={!designFile||!invoiceFile||loading} onClick={runVerify}>
+                <button className="btn btn-primary" disabled={!designFiles.length||!invoiceFiles.length||loading} onClick={runVerify}>
                   {loading?'Analyzing...':'Analyze Files'}
                 </button>
                 <button className="btn btn-ghost" onClick={runDemo} disabled={loading}>
