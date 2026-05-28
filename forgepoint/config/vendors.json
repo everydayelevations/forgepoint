@@ -1,0 +1,31 @@
+{
+  "vendors": {
+    "highland": {
+      "name": "Highland Cabinetry",
+      "lines": { "WHS": "White Shaker", "MTS": "Mountain Timber Shaker" },
+      "skuAliases": {
+        "B18-L": "WHS-B18", "B18-R": "WHS-B18",
+        "B15-L": "WHS-B15", "B15-R": "WHS-B15",
+        "SB36": "WHS-SB36", "3DB12": "MTS-3DB12", "3DB24": "MTS-3DB24",
+        "BWBK18": "MTS-BWBK18", "W361824": "WHS-W361824",
+        "W1536-L": "WHS-W1536", "W1536-R": "WHS-W1536",
+        "W1836-R": "WHS-W1836", "W1836-L": "WHS-W1836",
+        "PNL34.5*96*1/4": "MTS-PNL 34.5x96x1/4",
+        "REP1.5X96-L": "WHS-TF1.5x96", "REP1.5X96-R": "WHS-TF1.5x96",
+        "440149": "MTS-BMC24", "443028": "TRASH KIT"
+      },
+      "handedPairs": {
+        "W1536":     { "combine": true,  "note": "L+R pair = qty 2" },
+        "W1836":     { "combine": false, "note": "Handed versions distinct" },
+        "B18":       { "combine": false, "note": "HL/HR are separate positions" },
+        "REP1.5X96": { "combine": true,  "note": "L+R fillers = qty 2" }
+      }
+    },
+    "kraftmaid":  { "name": "KraftMaid",  "lines": {}, "skuAliases": {}, "handedPairs": {} },
+    "merillat":   { "name": "Merillat",   "lines": {}, "skuAliases": {}, "handedPairs": {} },
+    "ultracraft": { "name": "UltraCraft", "lines": {}, "skuAliases": {}, "handedPairs": {} },
+    "waypoint":   { "name": "Waypoint",   "lines": {}, "skuAliases": {}, "handedPairs": {} }
+  },
+  "applianceCodes": ["KRSC503ESS","KDFE104DSS","KSGG700ESS","440149","443028"],
+  "trimKeywords": ["TK","TK8","SM8","OCM8","TF1.5","REP3X","TOUCH UP","TOUCHUP","CROWN","SCRIBE","FILLER","PANEL"]
+}

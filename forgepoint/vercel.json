@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "functions": {
+    "pages/api/verify.js": { "maxDuration": 60 },
+    "pages/api/export.js": { "maxDuration": 30 }
+  }
+}
