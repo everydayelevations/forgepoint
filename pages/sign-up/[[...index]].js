@@ -11,7 +11,7 @@ export default function SignUpPage() {
       </Head>
       <div style={{ display:'flex', minHeight:'100vh', alignItems:'center', justifyContent:'center', background:'#E7D5B3', padding:'24px' }}>
         <div style={{ textAlign:'center' }}>
-          <img src="/clavex-key/walnut.svg" width={96} height={96} alt="Clavex" style={{ display:'block', margin:'0 auto 14px' }} />
+          <img src="/clavex-key/animated-walnut.svg" width={120} height={120} alt="Clavex" style={{ display:'block', margin:'0 auto 14px' }} />
           <h1 style={{ fontFamily:'"Zilla Slab", serif', fontWeight:700, fontSize:32, color:'#241A12', marginBottom:6, letterSpacing:'-0.01em' }}>Clavex</h1>
           <p style={{ fontFamily:'"Hanken Grotesk", system-ui, sans-serif', color:'#6E6155', fontSize:14, marginBottom:24 }}>The key between design and delivery.</p>
           <SignUp signInUrl="/sign-in" />
