@@ -1,10 +1,13 @@
 import { neon } from '@neondatabase/serverless'
+import { requireAuth } from '../../../lib/auth'
 
 const URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.NEON_DATABASE_URL || null
 const sql = URL ? neon(URL) : null
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  const auth = await requireAuth(req, ['manager'])
+  if (!auth.ok) return res.status(auth.status).json({ error: auth.error })
   if (!sql) return res.status(503).json({ error: 'Database not configured' })
 
   const id = parseInt(req.query.id, 10)

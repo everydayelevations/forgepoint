@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { runComparison } from '../../lib/comparisonEngine'
 import { DEMO_DESIGN, DEMO_INVOICE, DEMO_DESIGN_TEXT } from '../../lib/demoData'
 import { saveVerification } from '../../lib/db'
+import { requireAuth } from '../../lib/auth'
 
 export const config = { api: { bodyParser: { sizeLimit: '1mb' } }, maxDuration: 60 }
 
@@ -45,6 +46,8 @@ async function calcTrim(designText, designItems, invoiceItems) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const auth = await requireAuth(req, ['manager', 'sales'])
+  if (!auth.ok) return res.status(auth.status).json({ error: auth.error })
   try {
     const { demo, designUrls, invoiceUrls, vendor = 'highland' } = req.body
     let designExtracted, invoiceExtracted, rawDesignText
