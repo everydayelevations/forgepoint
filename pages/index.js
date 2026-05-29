@@ -356,6 +356,13 @@ export default function Clavex() {
                       <span style={{ color:CL.honey }}>✕</span>
                       <span style={{ fontFamily:CL.mono, color:CL.walnut }}>{fileRefs[1].name || 'invoice.pdf'}</span>
                       <span style={{ color:CL.ironLt }}>{`${vendor === 'highland' ? 'Highland' : vendor} · ${items.length} lines`}</span>
+                      {report.meta?.salesRep && (
+                        <>
+                          <span style={{ color:CL.honey }}>·</span>
+                          <span style={{ color:CL.ironLt }}>Rep:</span>
+                          <span style={{ color:CL.walnut, fontWeight:600 }}>{report.meta.salesRep}</span>
+                        </>
+                      )}
                     </>
                   ) : (
                     <span style={{ color:CL.iron }}>The key between design and delivery.</span>

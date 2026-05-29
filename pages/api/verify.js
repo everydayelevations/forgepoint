@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { runComparison } from '../../lib/comparisonEngine'
 import { DEMO_DESIGN, DEMO_INVOICE, DEMO_DESIGN_TEXT } from '../../lib/demoData'
+import { saveVerification } from '../../lib/db'
 
 export const config = { api: { bodyParser: { sizeLimit: '1mb' } }, maxDuration: 60 }
 
@@ -15,8 +16,9 @@ RULES:
 - itemType: "cabinet" | "trim" | "appliance" | "accessory" | "service"
 - Appliances: KRSC503ESS, KDFE104DSS, KSGG700ESS, 440149, 443028
 - price: null for design files, numeric for invoices
+- salesRep: pull the salesperson / sales rep / account manager / designer name from the document header. Look for labels like "Salesperson:", "Sales Rep:", "Rep:", "Account Manager:", "Designer:", "Prepared by:". Return null if not present.
 Return ONLY valid JSON, no markdown:
-{ "documentType": "design"|"invoice", "jobAddress": "string|null", "invoiceNumber": "string|null", "soNumber": "string|null", "items": [{ "sku": "WHS-B18", "description": "18\\" Base Cabinet HL", "qty": 1, "section": "sink wall", "itemType": "cabinet", "handed": "left", "price": 217.00, "source": "invoice" }] }`
+{ "documentType": "design"|"invoice", "jobAddress": "string|null", "invoiceNumber": "string|null", "soNumber": "string|null", "salesRep": "string|null", "items": [{ "sku": "WHS-B18", "description": "18\\" Base Cabinet HL", "qty": 1, "section": "sink wall", "itemType": "cabinet", "handed": "left", "price": 217.00, "source": "invoice" }] }`
 
 async function extractFromUrl(url, docType) {
   const response = await client.messages.create({
@@ -68,6 +70,7 @@ export default async function handler(req, res) {
         documentType: 'design',
         items: designParts.flatMap(p => p.items || []),
         jobAddress: firstNonEmpty(designParts.map(p => p.jobAddress)),
+        salesRep:   firstNonEmpty(designParts.map(p => p.salesRep)),
       }
       invoiceExtracted = {
         documentType: 'invoice',
@@ -75,6 +78,7 @@ export default async function handler(req, res) {
         jobAddress:    firstNonEmpty(invoiceParts.map(p => p.jobAddress)),
         invoiceNumber: joinUnique(invoiceParts.map(p => p.invoiceNumber)),
         soNumber:      joinUnique(invoiceParts.map(p => p.soNumber)),
+        salesRep:      firstNonEmpty(invoiceParts.map(p => p.salesRep)),
       }
       rawDesignText = ''
     } else {
@@ -85,8 +89,35 @@ export default async function handler(req, res) {
     report.meta.jobAddress    = invoiceExtracted.jobAddress || designExtracted.jobAddress || ''
     report.meta.invoiceNumber = invoiceExtracted.invoiceNumber || null
     report.meta.soNumber      = invoiceExtracted.soNumber || null
+    report.meta.salesRep      = invoiceExtracted.salesRep || designExtracted.salesRep || null
 
     const trimData = await calcTrim(rawDesignText, designExtracted.items||[], invoiceExtracted.items||[])
+
+    let savedId = null
+    if (!demo) {
+      try {
+        const saved = await saveVerification({
+          jobAddress:    report.meta.jobAddress || null,
+          vendor,
+          invoiceNumber: report.meta.invoiceNumber,
+          soNumber:      report.meta.soNumber,
+          salesRep:      report.meta.salesRep,
+          total:         report.summary.total,
+          matched:       report.summary.matched,
+          issues:        report.summary.issues,
+          missing:       report.summary.missing,
+          matchRate:     report.summary.matchRate,
+          overallStatus: report.summary.overallStatus,
+          report,
+          trimData,
+        })
+        savedId = saved?.id || null
+      } catch (e) {
+        console.error('DB save failed (non-fatal):', e.message)
+      }
+    }
+    report.meta.id = savedId
+
     return res.status(200).json({ report, trimData })
   } catch(err) {
     console.error(err)
