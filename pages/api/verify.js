@@ -3,6 +3,7 @@ import { runComparison } from '../../lib/comparisonEngine'
 import { DEMO_DESIGN, DEMO_INVOICE, DEMO_DESIGN_TEXT } from '../../lib/demoData'
 import { saveVerification } from '../../lib/db'
 import { requireAuth } from '../../lib/auth'
+import { resolveRep } from '../../lib/roster'
 
 export const config = { api: { bodyParser: { sizeLimit: '1mb' } }, maxDuration: 60 }
 
@@ -17,7 +18,7 @@ RULES:
 - itemType: "cabinet" | "trim" | "appliance" | "accessory" | "service"
 - Appliances: KRSC503ESS, KDFE104DSS, KSGG700ESS, 440149, 443028
 - price: null for design files, numeric for invoices
-- salesRep: pull the salesperson / sales rep / account manager / designer name from the document header. Look for labels like "Salesperson:", "Sales Rep:", "Rep:", "Account Manager:", "Designer:", "Prepared by:". Return null if not present.
+- salesRep: pull the salesperson / sales rep / account manager / designer identifier from the document header. Look for labels like "Salesperson:", "Sales Rep:", "Rep:", "Account Manager:", "Designer:", "Prepared by:". The value is often initials (e.g. "DF", "ST", "RAT") or a short name — return exactly what the document shows, preserving capitalization. Return null if not present.
 Return ONLY valid JSON, no markdown:
 { "documentType": "design"|"invoice", "jobAddress": "string|null", "invoiceNumber": "string|null", "soNumber": "string|null", "salesRep": "string|null", "items": [{ "sku": "WHS-B18", "description": "18\\" Base Cabinet HL", "qty": 1, "section": "sink wall", "itemType": "cabinet", "handed": "left", "price": 217.00, "source": "invoice" }] }`
 
@@ -92,7 +93,13 @@ export default async function handler(req, res) {
     report.meta.jobAddress    = invoiceExtracted.jobAddress || designExtracted.jobAddress || ''
     report.meta.invoiceNumber = invoiceExtracted.invoiceNumber || null
     report.meta.soNumber      = invoiceExtracted.soNumber || null
-    report.meta.salesRep      = invoiceExtracted.salesRep || designExtracted.salesRep || null
+
+    const rawRep = invoiceExtracted.salesRep || designExtracted.salesRep || null
+    const matchedRep = resolveRep(rawRep)
+    report.meta.salesRep      = matchedRep?.name  || rawRep || null
+    report.meta.salesRepEmail = matchedRep?.email || null
+    report.meta.salesRepRaw   = rawRep
+    report.meta.salesRepResolved = !!matchedRep
 
     const trimData = await calcTrim(rawDesignText, designExtracted.items||[], invoiceExtracted.items||[])
 
@@ -100,17 +107,19 @@ export default async function handler(req, res) {
     if (!demo) {
       try {
         const saved = await saveVerification({
-          jobAddress:    report.meta.jobAddress || null,
+          jobAddress:     report.meta.jobAddress || null,
           vendor,
-          invoiceNumber: report.meta.invoiceNumber,
-          soNumber:      report.meta.soNumber,
-          salesRep:      report.meta.salesRep,
-          total:         report.summary.total,
-          matched:       report.summary.matched,
-          issues:        report.summary.issues,
-          missing:       report.summary.missing,
-          matchRate:     report.summary.matchRate,
-          overallStatus: report.summary.overallStatus,
+          invoiceNumber:  report.meta.invoiceNumber,
+          soNumber:       report.meta.soNumber,
+          salesRep:       report.meta.salesRep,
+          salesRepEmail:  report.meta.salesRepEmail,
+          salesRepRaw:    report.meta.salesRepRaw,
+          total:          report.summary.total,
+          matched:        report.summary.matched,
+          issues:         report.summary.issues,
+          missing:        report.summary.missing,
+          matchRate:      report.summary.matchRate,
+          overallStatus:  report.summary.overallStatus,
           report,
           trimData,
         })
