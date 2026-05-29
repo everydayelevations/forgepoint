@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from 'react'
 import Head from 'next/head'
+import Link from 'next/link'
 import { upload } from '@vercel/blob/client'
 
 const CL = {
@@ -146,23 +147,26 @@ function Btn({ children, primary, icon, onClick, disabled }) {
   )
 }
 
-function NavItem({ icon, label, active, soon }) {
-  return (
-    <div style={{
-      display:'flex', alignItems:'center', gap:11, padding:'9px 11px', borderRadius:9,
-      cursor: active ? 'default' : 'pointer',
-      background: active ? 'rgba(191,85,39,0.16)' : 'transparent',
-      color: active ? CL.paper : 'rgba(242,231,210,0.62)',
-      fontFamily:CL.ui, fontWeight: active ? 700 : 500, fontSize:13.5,
-      borderLeft: active ? `2px solid ${CL.ember}` : '2px solid transparent',
-      paddingLeft: active ? 11 : 13,
-    }}>
+function NavItem({ icon, label, active, soon, href }) {
+  const body = (
+    <>
       <Icon d={icon} size={17} color={active ? CL.emberSoft : 'rgba(242,231,210,0.5)'} stroke={1.9} />
       <span style={{ whiteSpace:'nowrap' }}>{label}</span>
       {soon && <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:9, color:'rgba(242,231,210,0.45)',
         border:'1px solid rgba(242,231,210,0.18)', borderRadius:4, padding:'1px 5px', letterSpacing:'0.04em' }}>SOON</span>}
-    </div>
+    </>
   )
+  const style = {
+    display:'flex', alignItems:'center', gap:11, padding:'9px 11px', borderRadius:9,
+    cursor: href && !active ? 'pointer' : 'default',
+    background: active ? 'rgba(191,85,39,0.16)' : 'transparent',
+    color: active ? CL.paper : 'rgba(242,231,210,0.62)',
+    fontFamily:CL.ui, fontWeight: active ? 700 : 500, fontSize:13.5,
+    borderLeft: active ? `2px solid ${CL.ember}` : '2px solid transparent',
+    paddingLeft: active ? 11 : 13, opacity: soon ? 0.6 : 1, textDecoration:'none',
+  }
+  if (href && !active) return <Link href={href} style={style}>{body}</Link>
+  return <div style={style}>{body}</div>
 }
 
 function StatCard({ label, value, sub, color, icon, accent }) {
@@ -306,11 +310,11 @@ export default function Clavex() {
           <div style={{ fontFamily:CL.ui, fontWeight:700, fontSize:10.5, color:'rgba(242,231,210,0.4)',
             letterSpacing:'0.1em', padding:'0 11px 8px' }}>PLATFORM</div>
           <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-            <NavItem icon={ICN.check}  label="Order Verification" active />
+            <NavItem icon={ICN.check}  label="Order Verification" href="/" active />
+            <NavItem icon={ICN.chart}  label="Reports"            href="/reports" />
             <NavItem icon={ICN.truck}  label="Delivery Scheduling" soon />
             <NavItem icon={ICN.box}    label="Inventory" soon />
             <NavItem icon={ICN.users}  label="Vendors" soon />
-            <NavItem icon={ICN.chart}  label="Reports" soon />
           </div>
 
           <div style={{ marginTop:'auto', display:'flex', alignItems:'center', gap:10, padding:'12px 8px 0',
