@@ -1,58 +1,228 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import Head from 'next/head'
+import { upload } from '@vercel/blob/client'
 
-const STATUS_CFG = {
-  match:        { label: 'MATCH',    bg: '#D4EDDA', color: '#1A5C35' },
-  handed_merge: { label: 'PAIR OK',  bg: '#D4EDDA', color: '#1A5C35' },
-  qty_mismatch: { label: 'QTY DIFF', bg: '#FFF3CD', color: '#7B5C00' },
-  substitution: { label: 'SUB',      bg: '#FFF3CD', color: '#7B5C00' },
-  missing:      { label: 'MISSING',  bg: '#F8D7DA', color: '#6B1A1F' },
-  extra:        { label: 'EXTRA',    bg: '#CCE5FF', color: '#0A3D62' },
+const CL = {
+  paper:'#FBF5EA', cream:'#F2E7D2', sand:'#E7D5B3', tan:'#D6B583',
+  honey:'#C0904E', oak:'#9A6B38', walnut:'#5E3C22', espresso:'#33241A', ink:'#241A12',
+  ember:'#BF5527', emberSoft:'#E4A06A',
+  iron:'#6E6155', ironLt:'#9A8E80',
+  match:'#5E7A4B', flag:'#BF5527', miss:'#A6391F',
+  display:'"Zilla Slab", Georgia, serif',
+  ui:'"Hanken Grotesk", system-ui, sans-serif',
+  mono:'"Spline Sans Mono", ui-monospace, monospace',
 }
 
-const OVERALL_CFG = {
-  APPROVED: { bg: '#1A5C35', icon: '✓' },
-  REVIEW:   { bg: '#7B5C00', icon: '⚠' },
-  HOLD:     { bg: '#842029', icon: '✗' },
+const HONEY  = { light:'#E8C079', mid:'#C68F45', dark:'#8A5C2C' }
+const WALNUT = { light:'#6E4A2B', mid:'#4C3019', dark:'#2A1709' }
+
+const ICN = {
+  check:    <polyline points="20 6 9 17 4 12" />,
+  alert:    <g><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></g>,
+  minus:    <g><circle cx="12" cy="12" r="9" /><path d="M8 12h8" /></g>,
+  search:   <g><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></g>,
+  refresh:  <g><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" /><path d="M3 21v-5h5" /></g>,
+  download: <g><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></g>,
+  chev:     <polyline points="6 9 12 15 18 9" />,
+  box:      <g><path d="M3 7 12 3l9 4-9 4-9-4Z" /><path d="M3 7v10l9 4 9-4V7" /><path d="M12 11v10" /></g>,
+  truck:    <g><path d="M14 17V5H2v12" /><path d="M14 9h5l3 3v5h-8" /><circle cx="6.5" cy="17.5" r="1.6" /><circle cx="17.5" cy="17.5" r="1.6" /></g>,
+  layers:   <g><path d="m12 2 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5" /><path d="m3 17 9 5 9-5" /></g>,
+  users:    <g><path d="M16 19v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 19v-2a4 4 0 0 0-3-3.9" /></g>,
+  chart:    <g><path d="M3 3v18h18" /><rect x="7" y="11" width="3" height="6" /><rect x="13" y="7" width="3" height="10" /></g>,
+  upload:   <g><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></g>,
 }
 
-const NAV_MODULES = [
-  { id: 'verify',    label: 'Order Verify',   icon: '⬡', active: true  },
-  { id: 'inventory', label: 'Inventory',       icon: '⬢', active: false },
-  { id: 'delivery',  label: 'Delivery',        icon: '⬡', active: false },
-  { id: 'vendors',   label: 'Vendors',         icon: '⬢', active: false },
-]
+const SPEC_STATUS = {
+  match:'match', handed_merge:'match',
+  qty_mismatch:'flag', substitution:'flag', extra:'flag',
+  missing:'miss',
+}
 
-export default function Forgepoint() {
-  const [designFile, setDesignFile]   = useState(null)
-  const [invoiceFile, setInvoiceFile] = useState(null)
-  const [vendor, setVendor]           = useState('highland')
-  const [loading, setLoading]         = useState(false)
-  const [loadingMsg, setLoadingMsg]   = useState('')
-  const [report, setReport]           = useState(null)
-  const [trimData, setTrimData]       = useState(null)
-  const [error, setError]             = useState(null)
-  const [activeTab, setActiveTab]     = useState('all')
-  const [exporting, setExporting]     = useState(false)
-  const [navOpen, setNavOpen]         = useState(true)
+function Icon({ d, size = 18, color = 'currentColor', stroke = 2 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+         strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" style={{ display:'block', flex:'0 0 auto' }}>
+      {d}
+    </svg>
+  )
+}
+
+function KerfC({ size = 96, shadow = true, tone = 'walnut', flat = false }) {
+  const uid = useMemo(() => Math.random().toString(36).slice(2, 9), [])
+  const C = 'M28,18 H72 V34 H44 V66 H72 V82 H28 Z'
+  const wood = tone === 'honey' ? HONEY : WALNUT
+  const flatFill = tone === 'honey' ? '#E2B670' : '#5C3A22'
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" style={{ display:'block', overflow:'visible' }} aria-label="Clavex">
+      <defs>
+        <filter id={`sh${uid}`} x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="2.2" stdDeviation="2.4" floodColor="#2a160a" floodOpacity="0.34" />
+        </filter>
+        <clipPath id={`cc${uid}`}><path d={C} /></clipPath>
+        <linearGradient id={`grad${uid}`} x1="0" y1="0" x2="0.7" y2="1">
+          <stop offset="0" stopColor={wood.light} />
+          <stop offset="0.5" stopColor={wood.mid} />
+          <stop offset="1" stopColor={wood.dark} />
+        </linearGradient>
+        <filter id={`fFine${uid}`} filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+          <feTurbulence type="fractalNoise" baseFrequency="0.62 0.022" numOctaves="5" seed="6" stitchTiles="stitch" result="n" />
+          <feColorMatrix in="n" type="luminanceToAlpha" result="a" />
+          <feComponentTransfer in="a" result="b"><feFuncA type="gamma" amplitude="1.5" exponent="3.2" offset="-0.18" /></feComponentTransfer>
+          <feFlood floodColor="#1c0f05" result="c" /><feComposite in="c" in2="b" operator="in" />
+        </filter>
+        <filter id={`fHi${uid}`} filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+          <feTurbulence type="fractalNoise" baseFrequency="0.40 0.018" numOctaves="4" seed="17" stitchTiles="stitch" result="n" />
+          <feColorMatrix in="n" type="luminanceToAlpha" result="a" />
+          <feComponentTransfer in="a" result="b"><feFuncA type="gamma" amplitude="1.1" exponent="3.6" offset="-0.28" /></feComponentTransfer>
+          <feFlood floodColor="#fff0d6" result="c" /><feComposite in="c" in2="b" operator="in" />
+        </filter>
+        <filter id={`fMot${uid}`} filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+          <feTurbulence type="fractalNoise" baseFrequency="0.05 0.012" numOctaves="2" seed="10" stitchTiles="stitch" result="n" />
+          <feColorMatrix in="n" type="luminanceToAlpha" result="a" />
+          <feComponentTransfer in="a" result="b"><feFuncA type="linear" slope="0.5" intercept="-0.05" /></feComponentTransfer>
+          <feFlood floodColor="#23130a" result="c" /><feComposite in="c" in2="b" operator="in" />
+        </filter>
+        <linearGradient id={`kerf${uid}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#F6CE96" />
+          <stop offset="0.5" stopColor="#D9742F" />
+          <stop offset="1" stopColor="#A83D17" />
+        </linearGradient>
+      </defs>
+      <g filter={shadow ? `url(#sh${uid})` : undefined}>
+        {flat ? (
+          <path d={C} fill={flatFill} stroke="rgba(20,10,4,0.4)" strokeWidth="0.9" strokeLinejoin="round" />
+        ) : (
+          <>
+            <g clipPath={`url(#cc${uid})`}>
+              <rect x="0" y="0" width="100" height="100" fill={`url(#grad${uid})`} />
+              <rect x="0" y="0" width="100" height="100" filter={`url(#fMot${uid})`} opacity="0.5" style={{ mixBlendMode:'multiply' }} />
+              <rect x="0" y="0" width="100" height="100" filter={`url(#fFine${uid})`} opacity="0.7" style={{ mixBlendMode:'multiply' }} />
+              <rect x="0" y="0" width="100" height="100" filter={`url(#fHi${uid})`} opacity="0.45" style={{ mixBlendMode:'screen' }} />
+              <path d={C} fill="none" stroke="rgba(255,243,222,0.55)" strokeWidth="1.6" strokeLinejoin="round" transform="translate(-0.7,-0.7)" />
+              <path d={C} fill="none" stroke="rgba(0,0,0,0.42)" strokeWidth="1.6" strokeLinejoin="round" transform="translate(0.7,0.8)" />
+            </g>
+            <path d={C} fill="none" stroke="rgba(20,10,4,0.45)" strokeWidth="0.9" strokeLinejoin="round" />
+          </>
+        )}
+        <g clipPath={`url(#cc${uid})`}>
+          <polygon points="78,12 84,18 22,90 16,84" fill={`url(#kerf${uid})`} />
+          <polygon points="78,12 80,14 18,86 16,84" fill="#FBE0B4" opacity="0.85" />
+        </g>
+      </g>
+    </svg>
+  )
+}
+
+function StatusChip({ s }) {
+  const map = {
+    match: { c: CL.match, bg:'rgba(94,122,75,0.13)',  icon: ICN.check, label:'Matched' },
+    flag:  { c: CL.flag,  bg:'rgba(191,85,39,0.13)',  icon: ICN.alert, label:'Needs review' },
+    miss:  { c: CL.miss,  bg:'rgba(166,57,31,0.12)',  icon: ICN.minus, label:'Missing' },
+  }
+  const m = map[s] || map.flag
+  return (
+    <span style={{ display:'inline-flex', alignItems:'center', gap:6, color:m.c, background:m.bg,
+      fontFamily:CL.ui, fontWeight:600, fontSize:12, padding:'4px 9px', borderRadius:999, whiteSpace:'nowrap' }}>
+      <Icon d={m.icon} size={12.5} color={m.c} stroke={2.4} />{m.label}
+    </span>
+  )
+}
+
+function Btn({ children, primary, icon, onClick, disabled }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      display:'inline-flex', alignItems:'center', gap:8, height:40, padding:'0 16px',
+      borderRadius:9, cursor: disabled ? 'not-allowed' : 'pointer',
+      fontFamily:CL.ui, fontWeight:700, fontSize:13.5,
+      border: primary ? 'none' : `1px solid ${CL.sand}`,
+      background: primary ? CL.ember : CL.paper,
+      color: primary ? CL.paper : CL.walnut,
+      whiteSpace:'nowrap', opacity: disabled ? 0.45 : 1,
+      boxShadow: primary && !disabled ? '0 2px 8px rgba(191,85,39,0.28)' : 'none',
+      transition:'all .15s',
+    }}>
+      {icon && <Icon d={icon} size={16} color={primary ? CL.paper : CL.oak} stroke={2} />}{children}
+    </button>
+  )
+}
+
+function NavItem({ icon, label, active, soon }) {
+  return (
+    <div style={{
+      display:'flex', alignItems:'center', gap:11, padding:'9px 11px', borderRadius:9,
+      cursor: active ? 'default' : 'pointer',
+      background: active ? 'rgba(191,85,39,0.16)' : 'transparent',
+      color: active ? CL.paper : 'rgba(242,231,210,0.62)',
+      fontFamily:CL.ui, fontWeight: active ? 700 : 500, fontSize:13.5,
+      borderLeft: active ? `2px solid ${CL.ember}` : '2px solid transparent',
+      paddingLeft: active ? 11 : 13,
+    }}>
+      <Icon d={icon} size={17} color={active ? CL.emberSoft : 'rgba(242,231,210,0.5)'} stroke={1.9} />
+      <span style={{ whiteSpace:'nowrap' }}>{label}</span>
+      {soon && <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:9, color:'rgba(242,231,210,0.45)',
+        border:'1px solid rgba(242,231,210,0.18)', borderRadius:4, padding:'1px 5px', letterSpacing:'0.04em' }}>SOON</span>}
+    </div>
+  )
+}
+
+function StatCard({ label, value, sub, color, icon, accent }) {
+  return (
+    <div style={{
+      flex:1, padding:'15px 17px', borderRadius:14,
+      border:`1px solid ${accent ? color : CL.sand}`,
+      background: accent ? 'rgba(191,85,39,0.05)' : CL.paper,
+      boxShadow:'0 1px 0 rgba(255,255,255,0.6) inset, 0 6px 18px rgba(74,48,25,0.05)',
+    }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+        {icon && <Icon d={icon} size={15} color={color} stroke={2.3} />}
+        <span style={{ fontFamily:CL.ui, fontWeight:600, fontSize:12.5, color:CL.iron, whiteSpace:'nowrap' }}>{label}</span>
+      </div>
+      <div style={{ display:'flex', alignItems:'baseline', gap:8, marginTop:8 }}>
+        <span style={{ fontFamily:CL.display, fontWeight:700, fontSize:30, color: color || CL.ink, lineHeight:1 }}>{value}</span>
+        <span style={{ fontFamily:CL.ui, fontSize:12.5, color:CL.iron }}>{sub}</span>
+      </div>
+    </div>
+  )
+}
+
+const CARD = {
+  background: CL.paper, border:`1px solid ${CL.sand}`, borderRadius:14,
+  boxShadow:'0 1px 0 rgba(255,255,255,0.6) inset, 0 6px 18px rgba(74,48,25,0.05)',
+}
+
+export default function Clavex() {
+  const [designFiles, setDesignFiles]   = useState([])
+  const [invoiceFiles, setInvoiceFiles] = useState([])
+  const [vendor, setVendor]             = useState('highland')
+  const [loading, setLoading]           = useState(false)
+  const [loadingMsg, setLoadingMsg]     = useState('')
+  const [report, setReport]             = useState(null)
+  const [trimData, setTrimData]         = useState(null)
+  const [error, setError]               = useState(null)
+  const [exporting, setExporting]       = useState(false)
+  const [openRow, setOpenRow]           = useState(-1)
+  const [signoff, setSignoff]           = useState([false, false, false, false])
   const designRef  = useRef()
   const invoiceRef = useRef()
 
-  const MSGS = ['Reading PDFs...','Extracting SKUs with AI...','Matching line items...','Calculating trim quantities...','Building report...']
+  const MSGS = ['Uploading PDFs…','Extracting SKUs with AI…','Matching line items…','Calculating trim quantities…','Building report…']
 
-  async function toB64(file) {
-    return new Promise((res,rej) => { const r=new FileReader(); r.onload=e=>res(e.target.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file) })
+  async function uploadOne(file) {
+    const blob = await upload(file.name, file, { access:'public', handleUploadUrl:'/api/blob-upload' })
+    return blob.url
   }
 
   async function call(body) {
-    setLoading(true); setError(null); setReport(null); setTrimData(null)
+    setLoading(true); setError(null); setReport(null); setTrimData(null); setOpenRow(-1); setSignoff([false,false,false,false])
     let mi = 0; setLoadingMsg(MSGS[0])
     const iv = setInterval(() => { mi=(mi+1)%MSGS.length; setLoadingMsg(MSGS[mi]) }, 1800)
     try {
       const res = await fetch('/api/verify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setReport(data.report); setTrimData(data.trimData); setActiveTab('all')
+      setReport(data.report); setTrimData(data.trimData)
+      const firstFlag = (data.report?.items || []).findIndex(i => SPEC_STATUS[i.status] !== 'match')
+      if (firstFlag >= 0) setOpenRow(firstFlag)
     } catch(e) { setError(e.message) }
     finally { clearInterval(iv); setLoading(false) }
   }
@@ -60,9 +230,12 @@ export default function Forgepoint() {
   async function runDemo() { await call({ demo:true, vendor }) }
 
   async function runVerify() {
-    if (!designFile||!invoiceFile) return
-    const [designB64, invoiceB64] = await Promise.all([toB64(designFile), toB64(invoiceFile)])
-    await call({ designB64, invoiceB64, vendor })
+    if (!designFiles.length || !invoiceFiles.length) return
+    const [designUrls, invoiceUrls] = await Promise.all([
+      Promise.all(designFiles.map(uploadOne)),
+      Promise.all(invoiceFiles.map(uploadOne)),
+    ])
+    await call({ designUrls, invoiceUrls, vendor })
   }
 
   async function exportExcel() {
@@ -73,326 +246,408 @@ export default function Forgepoint() {
       const blob = await res.blob()
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = `forgepoint_${(report.meta?.jobAddress||'order').replace(/[^a-z0-9]/gi,'_').slice(0,30)}.xlsx`
+      a.download = `clavex_${(report.meta?.jobAddress||'order').replace(/[^a-z0-9]/gi,'_').slice(0,30)}.xlsx`
       a.click()
     } catch(e) { alert('Export failed: '+e.message) }
     finally { setExporting(false) }
   }
 
-  const displayItems = report?.items?.filter(i => {
-    if (activeTab==='issues') return !['match','handed_merge'].includes(i.status)
-    if (activeTab==='match')  return  ['match','handed_merge'].includes(i.status)
-    return true
-  }) || []
+  function reset() {
+    setReport(null); setTrimData(null); setError(null); setDesignFiles([]); setInvoiceFiles([]); setOpenRow(-1); setSignoff([false,false,false,false])
+  }
 
-  const oCfg = report ? (OVERALL_CFG[report.summary.overallStatus]||OVERALL_CFG.HOLD) : null
+  const summary = report?.summary
+  const items = report?.items || []
+  const matchedCount = summary?.matched || 0
+  const totalCount = summary?.total || 0
+  const reviewCount = summary ? (summary.issues - summary.missing) : 0
+  const missingCount = summary?.missing || 0
+  const matchRatePct = totalCount > 0 ? Math.round((matchedCount / totalCount) * 100) : 0
+
+  const overall = summary?.overallStatus
+  const pillCfg = overall === 'APPROVED'
+    ? { color: CL.match, bg:'rgba(94,122,75,0.13)', label:'APPROVED' }
+    : overall === 'HOLD'
+      ? { color: CL.miss, bg:'rgba(166,57,31,0.12)', label:'ON HOLD' }
+      : { color: CL.flag, bg:'rgba(191,85,39,0.13)', label:'IN REVIEW' }
+
+  const fileRefs = useMemo(() => [
+    { name:designFiles[0]?.name, ext:'2020 Design export' },
+    { name:invoiceFiles[0]?.name, ext:`${vendor === 'highland' ? 'Highland' : vendor} invoice` },
+  ], [designFiles, invoiceFiles, vendor])
 
   return (
     <>
       <Head>
-        <title>Forgepoint — Highland Cabinetry</title>
+        <title>Clavex — Order Verification</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
       </Head>
 
-      <style>{`
-        .layout { display:flex; min-height:100vh; }
+      <div style={{ display:'flex', minHeight:'100vh', background:CL.sand }}>
 
-        /* ── Sidebar ── */
-        .sidebar { width:${navOpen?220:64}px; background:var(--navy-dark); display:flex; flex-direction:column; transition:width 0.2s; flex-shrink:0; }
-        .sidebar-top { padding:20px ${navOpen?'20px':'12px'}; border-bottom:1px solid rgba(255,255,255,0.07); }
-        .brand { display:flex; align-items:center; gap:10px; cursor:default; }
-        .brand-mark { width:36px; height:36px; background:var(--teal); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .brand-mark svg { width:20px; height:20px; }
-        .brand-text { overflow:hidden; }
-        .brand-name { color:white; font-size:15px; font-weight:600; letter-spacing:-0.01em; white-space:nowrap; }
-        .brand-sub  { color:var(--steel); font-size:10px; white-space:nowrap; }
-        .nav { flex:1; padding:12px 0; }
-        .nav-section { padding: 0 ${navOpen?'12px':'8px'} 4px; }
-        .nav-label { font-size:9px; font-weight:600; color:rgba(255,255,255,0.25); text-transform:uppercase; letter-spacing:0.1em; padding: 8px ${navOpen?'8px':'4px'} 4px; white-space:nowrap; overflow:hidden; }
-        .nav-item { display:flex; align-items:center; gap:10px; padding:9px ${navOpen?'10px':'12px'}; border-radius:8px; cursor:pointer; transition:background 0.12s; margin-bottom:2px; }
-        .nav-item:hover { background:rgba(255,255,255,0.06); }
-        .nav-item.active { background:rgba(110,140,150,0.25); }
-        .nav-icon { font-size:16px; flex-shrink:0; color:var(--steel); width:20px; text-align:center; }
-        .nav-item.active .nav-icon { color:var(--teal); }
-        .nav-item-label { font-size:13px; color:rgba(255,255,255,0.6); white-space:nowrap; overflow:hidden; }
-        .nav-item.active .nav-item-label { color:white; }
-        .nav-soon { font-size:9px; background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.3); padding:2px 6px; border-radius:4px; margin-left:auto; white-space:nowrap; }
-        .sidebar-bottom { padding:16px ${navOpen?'20px':'12px'}; border-top:1px solid rgba(255,255,255,0.07); }
-        .hci-badge { display:flex; align-items:center; gap:8px; }
-        .hci-dot { width:8px; height:8px; background:var(--teal); border-radius:50%; flex-shrink:0; }
-        .hci-text { font-size:11px; color:rgba(255,255,255,0.35); white-space:nowrap; overflow:hidden; }
-        .toggle-btn { background:none; border:none; cursor:pointer; color:rgba(255,255,255,0.3); font-size:14px; padding:0; margin-left:auto; }
-        .toggle-btn:hover { color:white; }
-
-        /* ── Main ── */
-        .main { flex:1; display:flex; flex-direction:column; min-width:0; }
-        .topbar { background:var(--white); border-bottom:1px solid var(--border); padding:0 2rem; height:56px; display:flex; align-items:center; justify-content:space-between; }
-        .topbar-title { font-size:15px; font-weight:500; }
-        .topbar-meta { font-size:12px; color:var(--muted); }
-        .content { flex:1; padding:1.75rem 2rem; overflow-y:auto; max-width:1000px; }
-
-        /* ── Upload card ── */
-        .card { background:var(--white); border-radius:14px; border:1px solid var(--border); padding:1.75rem; margin-bottom:1.25rem; }
-        .card-title { font-family:'DM Serif Display',serif; font-size:20px; margin-bottom:4px; }
-        .card-sub   { font-size:13px; color:var(--muted); margin-bottom:1.5rem; }
-
-        .upload-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:1.25rem; }
-        @media(max-width:580px){.upload-grid{grid-template-columns:1fr;}}
-        .dropzone { border:2px dashed var(--border); border-radius:10px; padding:1.75rem 1.25rem; text-align:center; cursor:pointer; transition:all 0.15s; background:var(--bg); }
-        .dropzone:hover { border-color:var(--teal); background:var(--teal-lt); }
-        .dropzone.drag { border-color:var(--teal); background:var(--teal-lt); }
-        .dropzone.has { border-style:solid; border-color:var(--sage); background:#EEF1EC; }
-        .dz-icon  { font-size:28px; margin-bottom:8px; }
-        .dz-label { font-size:14px; font-weight:500; }
-        .dz-sub   { font-size:12px; color:var(--muted); margin-top:3px; }
-        .dropzone.has .dz-label { color:var(--sage); }
-
-        .controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-        select { padding:9px 13px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; background:var(--white); color:var(--text); }
-        .btn { padding:10px 20px; border-radius:8px; font-size:13px; font-weight:500; font-family:inherit; cursor:pointer; border:none; transition:all 0.15s; }
-        .btn-primary { background:var(--navy); color:white; }
-        .btn-primary:hover { background:var(--navy-dark); }
-        .btn-primary:disabled { opacity:0.35; cursor:not-allowed; }
-        .btn-teal { background:var(--teal); color:white; }
-        .btn-teal:hover { opacity:0.88; }
-        .btn-teal:disabled { opacity:0.35; cursor:not-allowed; }
-        .btn-ghost { background:transparent; color:var(--muted); border:1px dashed var(--border); font-size:12px; }
-        .btn-ghost:hover { border-color:var(--teal); color:var(--teal); }
-
-        /* ── Loading ── */
-        .loading { text-align:center; padding:3rem; background:var(--white); border-radius:14px; border:1px solid var(--border); margin-bottom:1.25rem; }
-        .spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--navy); border-radius:50%; animation:spin 0.7s linear infinite; margin:0 auto 14px; }
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .loading p { font-size:13px; color:var(--muted); }
-
-        .error-box { background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:1rem 1.25rem; color:#7F1D1D; font-size:13px; margin-bottom:1.25rem; }
-
-        /* ── Results header ── */
-        .results-hdr { background:var(--navy); border-radius:14px; padding:1.5rem 1.75rem; margin-bottom:1.25rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
-        .rh-title { font-family:'DM Serif Display',serif; font-size:22px; color:white; margin-bottom:3px; }
-        .rh-meta  { font-size:12px; color:var(--steel); }
-        .status-badge { padding:8px 18px; border-radius:8px; color:white; font-size:13px; font-weight:600; letter-spacing:0.02em; }
-
-        /* ── Stats ── */
-        .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:1.25rem; }
-        @media(max-width:640px){.stats-grid{grid-template-columns:repeat(2,1fr);}}
-        .stat { background:var(--white); border:1px solid var(--border); border-radius:10px; padding:1.1rem 1.25rem; }
-        .stat-lbl { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px; }
-        .stat-val { font-size:26px; font-weight:600; line-height:1; }
-
-        /* ── Trim ── */
-        .trim-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-        @media(max-width:580px){.trim-grid{grid-template-columns:repeat(2,1fr);}}
-        .trim-card { background:var(--bg); border-radius:10px; padding:12px 14px; }
-        .tc-name { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:5px; }
-        .tc-qty  { font-size:20px; font-weight:600; }
-        .tc-unit { font-size:11px; color:var(--muted); }
-        .tc-inv  { font-size:11px; color:var(--muted); margin-top:3px; }
-        .tc-status { display:inline-block; font-size:9px; font-weight:700; padding:2px 7px; border-radius:4px; margin-top:5px; text-transform:uppercase; letter-spacing:0.04em; }
-        .ts-ok      {background:var(--success-bg);color:var(--success-text)}
-        .ts-missing {background:var(--danger-bg); color:var(--danger-text)}
-        .ts-under   {background:var(--warn-bg);   color:var(--warn-text)}
-        .ts-over    {background:var(--warn-bg);   color:var(--warn-text)}
-
-        /* ── Line items ── */
-        .tabs { display:flex; gap:3px; background:var(--bg); padding:4px; border-radius:8px; width:fit-content; margin-bottom:1rem; }
-        .tab { padding:6px 14px; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer; border:none; background:transparent; color:var(--muted); font-family:inherit; transition:all 0.12s; }
-        .tab.active { background:var(--white); color:var(--navy); box-shadow:0 1px 3px rgba(0,0,0,0.08); }
-        .col-hdr { display:grid; grid-template-columns:88px 1fr 1fr 1fr 42px 42px; gap:8px; padding:5px 10px; font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:3px; }
-        .item-row { display:grid; grid-template-columns:88px 1fr 1fr 1fr 42px 42px; gap:8px; align-items:center; padding:8px 10px; border-radius:8px; font-size:12px; margin-bottom:2px; transition:background 0.1s; }
-        .item-row:hover { filter:brightness(0.97); }
-        @media(max-width:640px){ .col-hdr,.item-row{grid-template-columns:80px 1fr 1fr 36px 36px;} .col-hdr .c-desc,.item-row .c-desc{display:none;} }
-        .pill { display:inline-block; font-size:9px; font-weight:700; padding:3px 7px; border-radius:5px; letter-spacing:0.03em; text-align:center; }
-        .sku  { font-family:monospace; font-size:11px; }
-        .qty-diff { color:var(--danger-text); font-weight:700; }
-        .empty { text-align:center; padding:2.5rem; color:var(--muted); font-size:13px; }
-        .section-label { font-size:13px; font-weight:600; margin-bottom:.75rem; display:flex; align-items:center; gap:8px; }
-        .export-row { display:flex; gap:10px; flex-wrap:wrap; }
-        .layout-note { font-size:11px; color:var(--muted); margin-top:10px; }
-      `}</style>
-
-      <div className="layout">
-
-        {/* ── Sidebar ── */}
-        <aside className="sidebar">
-          <div className="sidebar-top">
-            <div className="brand">
-              <div className="brand-mark">
-                <svg viewBox="0 0 20 20" fill="none">
-                  <path d="M10 2L18 6.5V13.5L10 18L2 13.5V6.5L10 2Z" stroke="white" strokeWidth="1.5" fill="none"/>
-                  <path d="M10 2V18M2 6.5L18 13.5M18 6.5L2 13.5" stroke="white" strokeWidth="1" opacity="0.4"/>
-                </svg>
-              </div>
-              {navOpen && <div className="brand-text"><div className="brand-name">Forgepoint</div><div className="brand-sub">Built for Highland. Built to scale.</div></div>}
-            </div>
+        {/* ───── Sidebar ───── */}
+        <aside style={{ width:244, flex:'0 0 244px', background:CL.espresso, display:'flex', flexDirection:'column', padding:'22px 16px 18px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:11, padding:'0 6px 22px' }}>
+            <KerfC size={30} tone="honey" shadow={false} />
+            <span style={{ fontFamily:CL.display, fontWeight:700, fontSize:21, color:CL.paper, letterSpacing:'-0.01em' }}>Clavex</span>
           </div>
 
-          <nav className="nav">
-            <div className="nav-section">
-              {navOpen && <div className="nav-label">Modules</div>}
-              {NAV_MODULES.map(m => (
-                <div key={m.id} className={`nav-item${m.id==='verify'?' active':''}`} style={!m.active&&m.id!=='verify'?{opacity:0.5}:{}}>
-                  <span className="nav-icon">{m.icon}</span>
-                  {navOpen && <>
-                    <span className="nav-item-label">{m.label}</span>
-                    {!m.active && m.id!=='verify' && <span className="nav-soon">Soon</span>}
-                  </>}
-                </div>
-              ))}
-            </div>
-          </nav>
+          <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(255,255,255,0.06)',
+            border:'1px solid rgba(255,255,255,0.08)', borderRadius:9, padding:'8px 11px', marginBottom:18 }}>
+            <Icon d={ICN.search} size={15} color="rgba(242,231,210,0.5)" stroke={2} />
+            <span style={{ fontFamily:CL.ui, fontSize:13, color:'rgba(242,231,210,0.5)' }}>Search orders…</span>
+            <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:10, color:'rgba(242,231,210,0.4)',
+              border:'1px solid rgba(242,231,210,0.16)', borderRadius:4, padding:'0 5px' }}>⌘K</span>
+          </div>
 
-          <div className="sidebar-bottom">
-            <div className="hci-badge">
-              <div className="hci-dot" />
-              {navOpen && <div className="hci-text">Highland Cabinetry 08</div>}
-              <button className="toggle-btn" onClick={() => setNavOpen(o=>!o)}>{navOpen?'◀':'▶'}</button>
+          <div style={{ fontFamily:CL.ui, fontWeight:700, fontSize:10.5, color:'rgba(242,231,210,0.4)',
+            letterSpacing:'0.1em', padding:'0 11px 8px' }}>PLATFORM</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+            <NavItem icon={ICN.check}  label="Order Verification" active />
+            <NavItem icon={ICN.truck}  label="Delivery Scheduling" soon />
+            <NavItem icon={ICN.box}    label="Inventory" soon />
+            <NavItem icon={ICN.users}  label="Vendors" soon />
+            <NavItem icon={ICN.chart}  label="Reports" soon />
+          </div>
+
+          <div style={{ marginTop:'auto', display:'flex', alignItems:'center', gap:10, padding:'12px 8px 0',
+            borderTop:'1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ width:34, height:34, borderRadius:9, background:CL.ember, color:CL.paper,
+              display:'flex', alignItems:'center', justifyContent:'center', fontFamily:CL.display, fontWeight:700, fontSize:15 }}>H</div>
+            <div style={{ lineHeight:1.2 }}>
+              <div style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13, color:CL.paper }}>Highland Cabinetry</div>
+              <div style={{ fontFamily:CL.ui, fontSize:11.5, color:'rgba(242,231,210,0.5)' }}>Shop floor · Lacey, WA</div>
             </div>
           </div>
         </aside>
 
-        {/* ── Main ── */}
-        <div className="main">
-          <div className="topbar">
-            <div className="topbar-title">Order Verification</div>
-            <div className="topbar-meta">Forgepoint · 8th Ascent AI</div>
-          </div>
+        {/* ───── Main ───── */}
+        <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
 
-          <div className="content">
-
-            {/* Upload */}
-            <div className="card">
-              <div className="card-title">Verify an Order</div>
-              <div className="card-sub">Upload your 2020 Design export and QuickBooks invoice — AI does the comparison.</div>
-
-              <div className="upload-grid">
-                {[
-                  { label:'2020 Design File', sub:'Drop PDF or click to browse', icon:'📐', file:designFile, ref:designRef, set:setDesignFile },
-                  { label:'QuickBooks Invoice', sub:'Drop PDF or click to browse', icon:'🧾', file:invoiceFile, ref:invoiceRef, set:setInvoiceFile },
-                ].map(({label,sub,icon,file,ref,set},idx) => (
-                  <div key={idx}
-                    className={`dropzone${file?' has':''}`}
-                    onClick={()=>ref.current?.click()}
-                    onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag')}}
-                    onDragLeave={e=>e.currentTarget.classList.remove('drag')}
-                    onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)set(f)}}
-                  >
-                    <div className="dz-icon">{file?'✅':icon}</div>
-                    <div className="dz-label">{file?file.name:label}</div>
-                    <div className="dz-sub">{file?`${(file.size/1024).toFixed(1)} KB`:sub}</div>
-                    <input ref={ref} type="file" accept=".pdf" style={{display:'none'}} onChange={e=>{if(e.target.files[0])set(e.target.files[0])}} />
-                  </div>
-                ))}
+          {/* Topbar */}
+          <div style={{ padding:'20px 30px 18px', borderBottom:`1px solid ${CL.sand}`, background:CL.paper }}>
+            <div style={{ display:'flex', alignItems:'flex-start', gap:16 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:7, fontFamily:CL.ui, fontSize:12.5, color:CL.iron, marginBottom:5 }}>
+                  <span>Orders</span><span style={{ color:CL.ironLt }}>/</span>
+                  <span style={{ fontFamily:CL.mono }}>{report?.meta?.invoiceNumber ? `#${String(report.meta.invoiceNumber).split(',')[0]}` : 'New'}</span>
+                  <span style={{ color:CL.ironLt }}>/</span>
+                  <span style={{ color:CL.walnut, fontWeight:600 }}>Verification</span>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:12, minWidth:0 }}>
+                  <h1 style={{ margin:0, fontFamily:CL.display, fontWeight:700, fontSize:27, color:CL.ink, letterSpacing:'-0.01em', whiteSpace:'nowrap', flex:'0 1 auto', overflow:'hidden', textOverflow:'ellipsis' }}>
+                    {report?.meta?.jobAddress || 'Verify an order'}
+                  </h1>
+                  {report && (
+                    <span style={{ flex:'0 0 auto', fontFamily:CL.ui, fontWeight:700, fontSize:11.5,
+                      color:pillCfg.color, background:pillCfg.bg, padding:'4px 10px', borderRadius:999, whiteSpace:'nowrap' }}>
+                      {pillCfg.label}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontFamily:CL.ui, fontSize:13.5, color:CL.iron, marginTop:6, display:'flex', alignItems:'center', gap:8, whiteSpace:'nowrap', overflow:'hidden' }}>
+                  {report ? (
+                    <>
+                      <span style={{ fontFamily:CL.mono, color:CL.walnut }}>{fileRefs[0].name || 'design.pdf'}</span>
+                      <span style={{ color:CL.ironLt }}>{fileRefs[0].ext}</span>
+                      <span style={{ color:CL.honey }}>✕</span>
+                      <span style={{ fontFamily:CL.mono, color:CL.walnut }}>{fileRefs[1].name || 'invoice.pdf'}</span>
+                      <span style={{ color:CL.ironLt }}>{`${vendor === 'highland' ? 'Highland' : vendor} · ${items.length} lines`}</span>
+                    </>
+                  ) : (
+                    <span style={{ color:CL.iron }}>The key between design and delivery.</span>
+                  )}
+                </div>
               </div>
-
-              <div className="controls">
-                <select value={vendor} onChange={e=>setVendor(e.target.value)}>
-                  <option value="highland">Highland Cabinetry</option>
-                  <option value="kraftmaid">KraftMaid</option>
-                  <option value="merillat">Merillat</option>
-                  <option value="ultracraft">UltraCraft</option>
-                  <option value="waypoint">Waypoint</option>
-                </select>
-                <button className="btn btn-primary" disabled={!designFile||!invoiceFile||loading} onClick={runVerify}>
-                  {loading?'Analyzing...':'Analyze Files'}
-                </button>
-                <button className="btn btn-ghost" onClick={runDemo} disabled={loading}>
-                  Demo — Arkansas Ave #63052
-                </button>
+              <div style={{ display:'flex', gap:10, paddingTop:4, flex:'0 0 auto' }}>
+                <Btn icon={ICN.refresh} onClick={reset} disabled={loading}>New verification</Btn>
+                <Btn icon={ICN.download} primary onClick={exportExcel} disabled={!report || exporting}>{exporting ? 'Exporting…' : 'Export Excel'}</Btn>
               </div>
             </div>
+          </div>
 
-            {/* Loading */}
-            {loading && <div className="loading"><div className="spinner"/><p>{loadingMsg}</p></div>}
+          {/* Content */}
+          <div style={{ flex:1, overflow:'auto', padding:'22px 30px 30px', background:'linear-gradient(180deg,#FBF5EA,#F6EEDD)' }}>
 
-            {/* Error */}
-            {error && <div className="error-box">⚠ {error}</div>}
+            {/* ── No-report state: upload card ── */}
+            {!report && !loading && (
+              <UploadCard
+                designFiles={designFiles} setDesignFiles={setDesignFiles}
+                invoiceFiles={invoiceFiles} setInvoiceFiles={setInvoiceFiles}
+                vendor={vendor} setVendor={setVendor}
+                runVerify={runVerify} runDemo={runDemo}
+                designRef={designRef} invoiceRef={invoiceRef}
+                error={error}
+              />
+            )}
 
-            {/* Results */}
-            {report && !loading && (<>
-
-              <div className="results-hdr">
-                <div>
-                  <div className="rh-title">{report.meta?.jobAddress||'Verification Complete'}</div>
-                  <div className="rh-meta">Invoice #{report.meta?.invoiceNumber||'—'} · S.O. {report.meta?.soNumber||'—'} · {report.items?.length} items checked · {new Date(report.meta?.generatedAt).toLocaleDateString()}</div>
-                </div>
-                <div className="status-badge" style={{background:oCfg?.bg}}>
-                  {oCfg?.icon} {report.summary.overallStatus}
-                </div>
+            {/* ── Loading ── */}
+            {loading && (
+              <div style={{ ...CARD, padding:'48px 36px', textAlign:'center' }}>
+                <div style={{ width:34, height:34, borderRadius:'50%', border:`3px solid ${CL.sand}`, borderTopColor:CL.ember, margin:'0 auto 16px', animation:'cl-spin 0.7s linear infinite' }} />
+                <div style={{ fontFamily:CL.ui, fontSize:14, color:CL.iron }}>{loadingMsg}</div>
+                <style>{`@keyframes cl-spin { to { transform: rotate(360deg) } }`}</style>
               </div>
+            )}
 
-              {/* Stats */}
-              <div className="stats-grid">
-                {[
-                  { lbl:'Total Checked', val:report.summary.total, color:'var(--navy)' },
-                  { lbl:`Matched · ${report.summary.matchRate}%`, val:report.summary.matched, color:'#1A5C35' },
-                  { lbl:'Issues Found', val:report.summary.issues, color:report.summary.issues>0?'#842029':'#1A5C35' },
-                  { lbl:'Missing Items', val:report.summary.missing, color:report.summary.missing>0?'#842029':'#1A5C35' },
-                ].map(s=>(
-                  <div className="stat" key={s.lbl}>
-                    <div className="stat-lbl">{s.lbl}</div>
-                    <div className="stat-val" style={{color:s.color}}>{s.val}</div>
+            {/* ── Error ── */}
+            {error && !loading && report && (
+              <div style={{ background:'rgba(166,57,31,0.08)', border:`1px solid ${CL.miss}`, borderRadius:11, padding:'13px 16px', color:CL.miss, fontFamily:CL.ui, fontSize:13.5, marginBottom:18 }}>
+                ⚠ {error}
+              </div>
+            )}
+
+            {/* ── Results ── */}
+            {report && !loading && (
+              <>
+                {/* Progress */}
+                <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:18 }}>
+                  <div style={{ flex:1, height:8, borderRadius:999, background:CL.sand, overflow:'hidden' }}>
+                    <div style={{ width:`${matchRatePct}%`, height:'100%', background:`linear-gradient(90deg,${CL.honey},${CL.ember})`, transition:'width .4s' }} />
                   </div>
-                ))}
-              </div>
+                  <span style={{ fontFamily:CL.ui, fontSize:12.5, fontWeight:600, color:CL.walnut, whiteSpace:'nowrap' }}>
+                    {matchedCount} of {totalCount} lines reconciled
+                  </span>
+                </div>
 
-              {/* Trim */}
-              {trimData?.trimSuggestions?.length>0 && (
-                <div className="card">
-                  <div className="section-label">📏 Trim Quantity Suggestions</div>
-                  <div className="trim-grid">
-                    {trimData.trimSuggestions.map((t,i)=>(
-                      <div className="trim-card" key={i}>
-                        <div className="tc-name">{t.itemType}{t.height?` · ${t.height}`:''}</div>
-                        <div className="tc-qty">{t.suggestedQty} <span className="tc-unit">{t.unit}</span></div>
-                        {t.invoicedQty!==undefined&&<div className="tc-inv">Invoiced: {t.invoicedQty}</div>}
-                        <span className={`tc-status ts-${t.status||'ok'}`}>{(t.status||'ok').toUpperCase()}</span>
-                      </div>
-                    ))}
+                {/* Stats */}
+                <div style={{ display:'flex', gap:14, marginBottom:20 }}>
+                  <StatCard label="Total lines"   value={totalCount}    sub="compared"      color={CL.ink}   icon={ICN.layers} />
+                  <StatCard label="Matched"       value={matchedCount}  sub="auto-verified" color={CL.match} icon={ICN.check} />
+                  <StatCard label="Needs review"  value={reviewCount}   sub="flagged"       color={CL.flag}  icon={ICN.alert} accent={reviewCount > 0} />
+                  <StatCard label="Missing"       value={missingCount}  sub="on invoice"    color={CL.miss}  icon={ICN.minus} />
+                </div>
+
+                {/* Body grid */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 312px', gap:20, alignItems:'start' }}>
+                  <div>
+                    <div style={{ display:'flex', alignItems:'center', gap:10, margin:'2px 2px 12px' }}>
+                      <h2 style={{ margin:0, fontFamily:CL.ui, fontWeight:700, fontSize:16, color:CL.ink }}>Line-by-line comparison</h2>
+                      <span style={{ fontFamily:CL.ui, fontSize:12.5, color:CL.iron }}>· showing exceptions first</span>
+                    </div>
+                    <VTable items={items} openRow={openRow} setOpenRow={setOpenRow} />
                   </div>
-                  {trimData.layoutNotes&&<div className="layout-note">{trimData.layoutNotes}</div>}
+                  <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                    <TrimCard trim={trimData} />
+                    <SignoffCard signoff={signoff} setSignoff={setSignoff} reviewCount={reviewCount} missingCount={missingCount} />
+                  </div>
                 </div>
-              )}
-
-              {/* Line items */}
-              <div className="card">
-                <div className="section-label">📋 Line Item Comparison</div>
-                <div className="tabs">
-                  {[{k:'all',l:`All (${report.items?.length})`},{k:'issues',l:`Issues (${report.summary.issues})`},{k:'match',l:`Matched (${report.summary.matched})`}].map(t=>(
-                    <button key={t.k} className={`tab${activeTab===t.k?' active':''}`} onClick={()=>setActiveTab(t.k)}>{t.l}</button>
-                  ))}
-                </div>
-                {displayItems.length===0 ? <div className="empty">Nothing in this view.</div> : (<>
-                  <div className="col-hdr"><span>Status</span><span>Design SKU</span><span>Invoice SKU</span><span className="c-desc">Description</span><span style={{textAlign:'center'}}>D</span><span style={{textAlign:'center'}}>I</span></div>
-                  {displayItems.map((item,i)=>{
-                    const cfg=STATUS_CFG[item.status]||STATUS_CFG.extra
-                    return(
-                      <div key={i} className="item-row" style={{background:cfg.bg+'44'}} title={item.note||''}>
-                        <span><span className="pill" style={{background:cfg.bg,color:cfg.color}}>{cfg.label}</span></span>
-                        <span className="sku">{item.designSku||'—'}</span>
-                        <span className="sku">{item.invoiceSku||'—'}</span>
-                        <span className="c-desc" style={{fontSize:11,color:'var(--muted)'}}>{(item.description||'').slice(0,32)}</span>
-                        <span style={{textAlign:'center',fontWeight:500}}>{item.designQty||0}</span>
-                        <span style={{textAlign:'center',fontWeight:500}} className={item.status==='qty_mismatch'?'qty-diff':''}>{item.invoiceQty||0}</span>
-                      </div>
-                    )
-                  })}
-                </>)}
-              </div>
-
-              {/* Export */}
-              <div className="export-row">
-                <button className="btn btn-teal" onClick={exportExcel} disabled={exporting}>
-                  {exporting?'Exporting...':'⬇ Export Excel Report'}
-                </button>
-              </div>
-
-            </>)}
+              </>
+            )}
           </div>
         </div>
       </div>
     </>
+  )
+}
+
+/* ─────────────────────────────────────────── Upload card ── */
+function UploadCard({ designFiles, setDesignFiles, invoiceFiles, setInvoiceFiles, vendor, setVendor, runVerify, runDemo, designRef, invoiceRef, error }) {
+  const zones = [
+    { label:'Design files (2020 Design export)', files:designFiles, set:setDesignFiles, ref:designRef },
+    { label:'Sales estimates / invoices',         files:invoiceFiles, set:setInvoiceFiles, ref:invoiceRef },
+  ]
+  return (
+    <div style={{ ...CARD, padding:'26px 28px', maxWidth:880 }}>
+      <h2 style={{ fontFamily:CL.display, fontWeight:700, fontSize:24, color:CL.ink, letterSpacing:'-0.01em', marginBottom:4 }}>Start a verification</h2>
+      <p style={{ fontFamily:CL.ui, fontSize:13.5, color:CL.iron, marginBottom:22 }}>Drop your design PDFs and the matching sales orders. Multiple files OK on either side.</p>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:18 }}>
+        {zones.map((z, i) => {
+          const has = z.files.length > 0
+          const names = z.files.map(f => f.name).join(', ')
+          return (
+            <div key={i}
+              onClick={() => z.ref.current?.click()}
+              onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = CL.ember; e.currentTarget.style.background = 'rgba(191,85,39,0.06)' }}
+              onDragLeave={e => { e.currentTarget.style.borderColor = has ? CL.match : CL.tan; e.currentTarget.style.background = has ? 'rgba(94,122,75,0.06)' : CL.cream }}
+              onDrop={e => { e.preventDefault(); const fs = Array.from(e.dataTransfer.files).filter(f => /\.pdf$/i.test(f.name)); if (fs.length) z.set(fs); e.currentTarget.style.borderColor = has ? CL.match : CL.tan; e.currentTarget.style.background = has ? 'rgba(94,122,75,0.06)' : CL.cream }}
+              style={{
+                border:`2px dashed ${has ? CL.match : CL.tan}`,
+                background: has ? 'rgba(94,122,75,0.06)' : CL.cream,
+                borderRadius:11, padding:'24px 18px', textAlign:'center', cursor:'pointer', transition:'all .15s',
+              }}>
+              <Icon d={has ? ICN.check : ICN.upload} size={24} color={has ? CL.match : CL.oak} stroke={2} />
+              <div style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13.5, color:CL.ink, marginTop:8 }}>
+                {has ? `${z.files.length} file${z.files.length>1?'s':''} ready` : z.label}
+              </div>
+              <div style={{ fontFamily:CL.ui, fontSize:12, color:CL.iron, marginTop:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {has ? (names.length > 60 ? names.slice(0,58)+'…' : names) : 'Drop PDFs or click to browse'}
+              </div>
+              <input ref={z.ref} type="file" accept=".pdf" multiple style={{ display:'none' }}
+                onChange={e => { const fs = Array.from(e.target.files); if (fs.length) z.set(fs) }} />
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+        <select value={vendor} onChange={e => setVendor(e.target.value)} style={{
+          height:40, padding:'0 12px', borderRadius:9, border:`1px solid ${CL.sand}`,
+          background:CL.paper, color:CL.walnut, fontFamily:CL.ui, fontWeight:600, fontSize:13.5, cursor:'pointer',
+        }}>
+          <option value="highland">Highland Cabinetry</option>
+          <option value="kraftmaid">KraftMaid</option>
+          <option value="merillat">Merillat</option>
+          <option value="ultracraft">UltraCraft</option>
+          <option value="waypoint">Waypoint</option>
+        </select>
+        <Btn primary icon={ICN.check} onClick={runVerify} disabled={!designFiles.length || !invoiceFiles.length}>Analyze</Btn>
+        <Btn onClick={runDemo}>Demo · Arkansas Ave</Btn>
+      </div>
+
+      {error && (
+        <div style={{ marginTop:16, background:'rgba(166,57,31,0.08)', border:`1px solid ${CL.miss}`, borderRadius:11, padding:'11px 14px', color:CL.miss, fontFamily:CL.ui, fontSize:13 }}>
+          ⚠ {error}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────── Verification table ── */
+function VTable({ items, openRow, setOpenRow }) {
+  const grid = '1.15fr 2fr 1.15fr 0.7fr 0.7fr 1.2fr 28px'
+  const sorted = [...items].sort((a,b) => {
+    const order = { miss:0, flag:1, match:2 }
+    return (order[SPEC_STATUS[a.status]] ?? 9) - (order[SPEC_STATUS[b.status]] ?? 9)
+  })
+
+  return (
+    <div style={{ ...CARD, overflow:'hidden' }}>
+      <div style={{ display:'grid', gridTemplateColumns:grid, gap:14, padding:'13px 18px',
+        background:CL.cream, borderBottom:`1px solid ${CL.sand}`,
+        fontFamily:CL.ui, fontWeight:700, fontSize:10.5, color:CL.iron, letterSpacing:'0.07em', textTransform:'uppercase' }}>
+        <div>Design code</div><div>Description</div><div>Invoice SKU</div>
+        <div style={{ textAlign:'center' }}>Dsgn</div><div style={{ textAlign:'center' }}>Inv</div><div>Status</div><div></div>
+      </div>
+
+      {sorted.length === 0 && (
+        <div style={{ padding:'30px 18px', textAlign:'center', fontFamily:CL.ui, fontSize:13.5, color:CL.iron }}>
+          No line items in this view.
+        </div>
+      )}
+
+      {sorted.map((r, i) => {
+        const status = SPEC_STATUS[r.status] || 'flag'
+        const dq = r.designQty ?? 0
+        const iq = r.invoiceQty ?? 0
+        const dqDisp = status === 'flag' && r.status === 'extra' ? '–' : dq
+        const iqDisp = status === 'miss' ? 0 : iq
+        const qtyBad = status === 'flag' && dq !== iq && r.status !== 'extra' && r.status !== 'substitution'
+        const hasNote = !!r.note
+        const isOpen = openRow === i
+        return (
+          <div key={i} style={{ borderBottom: i < sorted.length - 1 ? `1px solid ${CL.sand}` : 'none' }}>
+            <div onClick={() => hasNote && setOpenRow(isOpen ? -1 : i)}
+              style={{ display:'grid', gridTemplateColumns:grid, gap:14, padding:'13px 18px', alignItems:'center',
+                cursor: hasNote ? 'pointer' : 'default', background: isOpen ? 'rgba(191,85,39,0.04)' : 'transparent' }}>
+              <div style={{ fontFamily:CL.mono, fontSize:13, fontWeight:600, color:CL.ink, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.designSku || '–'}</div>
+              <div style={{ fontFamily:CL.ui, fontSize:13, color:CL.walnut, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.description || '—'}</div>
+              <div style={{ fontFamily:CL.mono, fontSize:13, color: r.invoiceSku ? CL.oak : CL.ironLt, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.invoiceSku || '–'}</div>
+              <div style={{ fontFamily:CL.mono, fontSize:13, textAlign:'center', color: dqDisp === '–' ? CL.ironLt : CL.ink }}>{dqDisp}</div>
+              <div style={{ fontFamily:CL.mono, fontSize:13, textAlign:'center', fontWeight: qtyBad ? 700 : 400, color: qtyBad ? CL.miss : (iqDisp === 0 ? CL.ironLt : CL.ink) }}>{iqDisp}</div>
+              <div><StatusChip s={status} /></div>
+              <div style={{ display:'flex', justifyContent:'center', color:CL.iron,
+                transform: isOpen ? 'rotate(180deg)' : 'none', transition:'transform .15s', opacity: hasNote ? 1 : 0 }}>
+                <Icon d={ICN.chev} size={16} color={CL.iron} stroke={2.2} />
+              </div>
+            </div>
+            {isOpen && hasNote && (
+              <div style={{ padding:'0 18px 16px', background:'rgba(191,85,39,0.04)' }}>
+                <div style={{ display:'flex', gap:12, padding:'13px 15px', background:CL.paper, border:`1px solid ${CL.sand}`, borderRadius:11 }}>
+                  <div style={{ width:26, height:26, borderRadius:7, flex:'0 0 auto', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(191,85,39,0.13)' }}>
+                    <Icon d={ICN.alert} size={15} color={CL.flag} stroke={2.2} />
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontFamily:CL.ui, fontSize:13.5, color:CL.ink, lineHeight:1.55 }}>{r.note}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────── Trim card ── */
+function TrimCard({ trim }) {
+  const rows = trim?.trimSuggestions || []
+  return (
+    <div style={{ ...CARD, padding:18 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:4 }}>
+        <Icon d={ICN.layers} size={17} color={CL.oak} stroke={2} />
+        <h3 style={{ margin:0, fontFamily:CL.ui, fontWeight:700, fontSize:15, color:CL.ink, whiteSpace:'nowrap' }}>Suggested trim</h3>
+      </div>
+      <p style={{ margin:'0 0 13px', fontFamily:CL.ui, fontSize:12.5, color:CL.iron, lineHeight:1.5 }}>
+        {trim?.layoutNotes ? trim.layoutNotes.slice(0, 120) : 'Derived from the layout perimeter and cabinet runs.'}
+      </p>
+      {rows.length === 0 ? (
+        <div style={{ fontFamily:CL.ui, fontSize:12.5, color:CL.iron, padding:'10px 0' }}>No trim suggestions.</div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {rows.map((r, i) => {
+            const needsAdd = r.status && r.status !== 'ok'
+            return (
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:CL.cream, borderRadius:9, border:`1px solid ${CL.sand}` }}>
+                <span style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13, color:CL.ink }}>{r.itemType}{r.height ? ` · ${r.height}` : ''}</span>
+                <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12.5, color:CL.walnut }}>{r.suggestedQty} {r.unit}</span>
+                {needsAdd
+                  ? <span style={{ fontFamily:CL.ui, fontWeight:700, fontSize:11, color:CL.ember, background:'rgba(191,85,39,0.12)', padding:'3px 8px', borderRadius:999 }}>+ Add</span>
+                  : <Icon d={ICN.check} size={15} color={CL.match} stroke={2.6} />}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────── Sign-off card ── */
+function SignoffCard({ signoff, setSignoff, reviewCount, missingCount }) {
+  const items = ['Quantities reconciled', 'Handed pairs confirmed', 'Trim added to invoice', 'Naming differences resolved']
+  const toggle = (i) => setSignoff(d => d.map((v, j) => j === i ? !v : v))
+  const count = signoff.filter(Boolean).length
+  const allDone = count === 4
+  const canSignoff = allDone && reviewCount === 0 && missingCount === 0
+
+  return (
+    <div style={{ ...CARD, padding:18 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:9 }}>
+        <h3 style={{ margin:0, fontFamily:CL.ui, fontWeight:700, fontSize:15, color:CL.ink, whiteSpace:'nowrap' }}>Sign-off checklist</h3>
+        <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12, color:CL.iron }}>{count}/4</span>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:4, margin:'14px 0 16px' }}>
+        {items.map((t, i) => (
+          <div key={i} onClick={() => toggle(i)} style={{ display:'flex', alignItems:'center', gap:11, padding:'8px 4px', cursor:'pointer' }}>
+            <div style={{ width:20, height:20, borderRadius:6, flex:'0 0 auto', display:'flex', alignItems:'center', justifyContent:'center',
+              background: signoff[i] ? CL.match : CL.paper, border:`1.5px solid ${signoff[i] ? CL.match : CL.tan}` }}>
+              {signoff[i] && <Icon d={ICN.check} size={13} color={CL.paper} stroke={3} />}
+            </div>
+            <span style={{ fontFamily:CL.ui, fontSize:13.5, fontWeight:500,
+              color: signoff[i] ? CL.iron : CL.ink, textDecoration: signoff[i] ? 'line-through' : 'none' }}>{t}</span>
+          </div>
+        ))}
+      </div>
+      <button style={{
+        width:'100%', height:44, borderRadius:10, border:'none', cursor: canSignoff ? 'pointer' : 'not-allowed',
+        background: canSignoff ? CL.ember : CL.tan,
+        color: canSignoff ? CL.paper : CL.walnut,
+        fontFamily:CL.ui, fontWeight:700, fontSize:14, transition:'background .2s',
+        boxShadow: canSignoff ? '0 3px 12px rgba(191,85,39,0.3)' : 'none',
+      }}>
+        {canSignoff
+          ? 'Sign off & lock order'
+          : !allDone
+            ? `Resolve ${4 - count} item${4 - count > 1 ? 's' : ''} to lock`
+            : `${reviewCount + missingCount} open issue${reviewCount + missingCount > 1 ? 's' : ''} remaining`}
+      </button>
+    </div>
   )
 }

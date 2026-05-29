@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   // Summary
   const { meta, summary } = report
   const summaryRows = [
-    ['FORGEPOINT — CABINET ORDER VERIFICATION'],
+    ['CLAVEX — CABINET ORDER VERIFICATION'],
     ['Highland Cabinetry 08, Inc'],
     [],
     ['Job Address:', meta?.jobAddress||''],
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
 
   // Sign-Off
   const signRows = [
-    ['CABINET ORDER SIGN-OFF — FORGEPOINT'],
+    ['CABINET ORDER SIGN-OFF — CLAVEX'],
     ['Job:', meta?.jobAddress||''], ['Invoice #:', meta?.invoiceNumber||''], [],
     ['CHECKLIST','DONE','INITIALS','NOTES'],
     ['All SKUs verified against design','☐','',''],
@@ -82,6 +82,6 @@ export default async function handler(req, res) {
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
   const safeName = (meta?.jobAddress||'order').replace(/[^a-z0-9]/gi,'_').slice(0,30)
   res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-  res.setHeader('Content-Disposition',`attachment; filename="forgepoint_${safeName}.xlsx"`)
+  res.setHeader('Content-Disposition',`attachment; filename="clavex_${safeName}.xlsx"`)
   return res.send(buf)
 }

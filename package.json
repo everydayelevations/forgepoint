@@ -1,5 +1,5 @@
 {
-  "name": "forgepoint",
+  "name": "clavex",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -8,12 +8,13 @@
     "start": "next start"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@vercel/blob": "^2.4.0",
     "next": "14.2.3",
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.15.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@anthropic-ai/sdk": "^0.24.0",
-    "pdf-parse": "^1.1.1",
-    "xlsx": "^0.18.5",
-    "pdfkit": "^0.15.0"
+    "xlsx": "^0.18.5"
   }
 }
