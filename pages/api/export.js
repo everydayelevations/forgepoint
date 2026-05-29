@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   // Summary
   const { meta, summary } = report
   const summaryRows = [
-    ['FORGEPOINT — CABINET ORDER VERIFICATION'],
+    ['FORGEPOINT AI — CABINET ORDER VERIFICATION'],
     ['Highland Cabinetry 08, Inc'],
     [],
     ['Job Address:', meta?.jobAddress||''],
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
 
   // Sign-Off
   const signRows = [
-    ['CABINET ORDER SIGN-OFF — FORGEPOINT'],
+    ['CABINET ORDER SIGN-OFF — FORGEPOINT AI'],
     ['Job:', meta?.jobAddress||''], ['Invoice #:', meta?.invoiceNumber||''], [],
     ['CHECKLIST','DONE','INITIALS','NOTES'],
     ['All SKUs verified against design','☐','',''],

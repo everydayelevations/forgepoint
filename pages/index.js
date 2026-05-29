@@ -95,7 +95,7 @@ export default function Forgepoint() {
   return (
     <>
       <Head>
-        <title>Forgepoint — Highland Cabinetry</title>
+        <title>Forgepoint AI — Highland Cabinetry</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
@@ -230,7 +230,7 @@ export default function Forgepoint() {
                   <path d="M10 2V18M2 6.5L18 13.5M18 6.5L2 13.5" stroke="white" strokeWidth="1" opacity="0.4"/>
                 </svg>
               </div>
-              {navOpen && <div className="brand-text"><div className="brand-name">Forgepoint</div><div className="brand-sub">Built for Highland. Built to scale.</div></div>}
+              {navOpen && <div className="brand-text"><div className="brand-name">Forgepoint AI</div><div className="brand-sub">Built for Highland. Built to scale.</div></div>}
             </div>
           </div>
 
@@ -262,7 +262,7 @@ export default function Forgepoint() {
         <div className="main">
           <div className="topbar">
             <div className="topbar-title">Order Verification</div>
-            <div className="topbar-meta">Forgepoint · 8th Ascent AI</div>
+            <div className="topbar-meta">Forgepoint AI · 8th Ascent AI</div>
           </div>
 
           <div className="content">
