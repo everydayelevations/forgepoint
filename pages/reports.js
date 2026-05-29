@@ -127,9 +127,9 @@ function Sidebar({ active }) {
   const isManager = role === 'manager'
   return (
     <aside style={{ width:244, flex:'0 0 244px', background:CL.espresso, display:'flex', flexDirection:'column', padding:'22px 16px 18px', position:'sticky', top:0, height:'100vh' }}>
-      <Link href="/" style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:11, padding:'0 6px 22px' }}>
-        <img src="/clavex-key/animated-honey.svg" width={34} height={34} alt="Clavex" style={{ display:'block' }} />
-        <span style={{ fontFamily:CL.display, fontWeight:700, fontSize:21, color:CL.paper, letterSpacing:'-0.01em' }}>Clavex</span>
+      <Link href="/" style={{ textDecoration:'none', display:'flex', flexDirection:'column', alignItems:'center', gap:6, padding:'4px 6px 22px' }}>
+        <img src="/clavex-key/animated-honey.svg" width={72} height={72} alt="Clavex" style={{ display:'block' }} />
+        <span style={{ fontFamily:CL.display, fontWeight:700, fontSize:15, color:CL.paper, letterSpacing:'-0.01em' }}>Clavex</span>
       </Link>
 
       <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(255,255,255,0.06)',
