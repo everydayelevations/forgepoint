@@ -2,6 +2,7 @@ import { useState, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { upload } from '@vercel/blob/client'
+import { useUser, UserButton } from '@clerk/nextjs'
 
 const CL = {
   paper:'#FBF5EA', cream:'#F2E7D2', sand:'#E7D5B3', tan:'#D6B583',
@@ -195,6 +196,9 @@ const CARD = {
 }
 
 export default function Clavex() {
+  const { user } = useUser()
+  const role = user?.publicMetadata?.role || 'sales'
+  const isManager = role === 'manager'
   const [designFiles, setDesignFiles]   = useState([])
   const [invoiceFiles, setInvoiceFiles] = useState([])
   const [vendor, setVendor]             = useState('highland')
@@ -311,7 +315,7 @@ export default function Clavex() {
             letterSpacing:'0.1em', padding:'0 11px 8px' }}>PLATFORM</div>
           <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
             <NavItem icon={ICN.check}  label="Order Verification" href="/" active />
-            <NavItem icon={ICN.chart}  label="Reports"            href="/reports" />
+            {isManager && <NavItem icon={ICN.chart} label="Reports" href="/reports" />}
             <NavItem icon={ICN.truck}  label="Delivery Scheduling" soon />
             <NavItem icon={ICN.box}    label="Inventory" soon />
             <NavItem icon={ICN.users}  label="Vendors" soon />
@@ -319,11 +323,14 @@ export default function Clavex() {
 
           <div style={{ marginTop:'auto', display:'flex', alignItems:'center', gap:10, padding:'12px 8px 0',
             borderTop:'1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ width:34, height:34, borderRadius:9, background:CL.ember, color:CL.paper,
-              display:'flex', alignItems:'center', justifyContent:'center', fontFamily:CL.display, fontWeight:700, fontSize:15 }}>H</div>
-            <div style={{ lineHeight:1.2 }}>
-              <div style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13, color:CL.paper }}>Highland Cabinetry</div>
-              <div style={{ fontFamily:CL.ui, fontSize:11.5, color:'rgba(242,231,210,0.5)' }}>Shop floor · Lacey, WA</div>
+            <UserButton appearance={{ elements: { avatarBox: { width:34, height:34 } } }} />
+            <div style={{ lineHeight:1.2, minWidth:0, flex:1 }}>
+              <div style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13, color:CL.paper, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.primaryEmailAddress?.emailAddress : 'Highland Cabinetry'}
+              </div>
+              <div style={{ fontFamily:CL.ui, fontSize:11.5, color:'rgba(242,231,210,0.5)', textTransform:'capitalize' }}>
+                {isManager ? 'Manager' : 'Sales'} · Highland Cabinetry CO
+              </div>
             </div>
           </div>
         </aside>
