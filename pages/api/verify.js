@@ -12,13 +12,13 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const EXTRACT_SYSTEM = `You are a cabinet order extraction specialist for Highland Cabinetry.
 Extract every cabinet, trim, and accessory line item from the document into structured JSON.
 RULES:
-- Extract EVERY SKU — do not skip any line item
+- Extract EVERY SKU. Do not skip any line item.
 - Preserve handed suffixes (-L, -R, HL, HR) exactly as written
 - Identify sections from headers like "---- island ----" or "--- sink side wall ----"
 - itemType: "cabinet" | "trim" | "appliance" | "accessory" | "service"
 - Appliances: KRSC503ESS, KDFE104DSS, KSGG700ESS, 440149, 443028
 - price: null for design files, numeric for invoices
-- salesRep: pull the salesperson / sales rep / account manager / designer identifier from the document header. Look for labels like "Salesperson:", "Sales Rep:", "Rep:", "Account Manager:", "Designer:", "Prepared by:". The value is often initials (e.g. "DF", "ST", "RAT") or a short name — return exactly what the document shows, preserving capitalization. Return null if not present.
+- salesRep: pull the salesperson / sales rep / account manager / designer identifier from the document header. Look for labels like "Salesperson:", "Sales Rep:", "Rep:", "Account Manager:", "Designer:", "Prepared by:". The value is often initials (e.g. "DF", "ST", "RAT") or a short name. Return exactly what the document shows, preserving capitalization. Return null if not present.
 Return ONLY valid JSON, no markdown:
 { "documentType": "design"|"invoice", "jobAddress": "string|null", "invoiceNumber": "string|null", "soNumber": "string|null", "salesRep": "string|null", "items": [{ "sku": "WHS-B18", "description": "18\\" Base Cabinet HL", "qty": 1, "section": "sink wall", "itemType": "cabinet", "handed": "left", "price": 217.00, "source": "invoice" }] }`
 
@@ -42,7 +42,7 @@ async function calcTrim(designText, designItems, invoiceItems) {
   })
   const raw = response.content[0].text.replace(/```json|```/g, '').trim()
   try { return JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}')+1)) }
-  catch { return { trimSuggestions: [], layoutNotes: 'Could not calculate trim — review manually.' } }
+  catch { return { trimSuggestions: [], layoutNotes: 'Could not calculate trim. Review manually.' } }
 }
 
 export default async function handler(req, res) {
