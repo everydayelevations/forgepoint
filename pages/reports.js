@@ -57,15 +57,6 @@ const RANGES = [
   { key:'7d',   label:'Last 7 days',  days:7    },
 ]
 
-const VENDORS = [
-  { key:'',           label:'All vendors' },
-  { key:'highland',   label:'Highland Cabinetry' },
-  { key:'kraftmaid',  label:'KraftMaid' },
-  { key:'merillat',   label:'Merillat' },
-  { key:'ultracraft', label:'UltraCraft' },
-  { key:'waypoint',   label:'Waypoint' },
-]
-
 function Icon({ d, size = 18, color = 'currentColor', stroke = 2 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
@@ -239,7 +230,7 @@ function rateColor(rate) {
 
 export default function Reports() {
   const [range, setRange]       = useState('30d')
-  const [vendor, setVendor]     = useState('')
+  const [salesRep, setSalesRep] = useState('')
   const [data, setData]         = useState(null)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
@@ -252,15 +243,15 @@ export default function Reports() {
       const d = new Date(); d.setDate(d.getDate() - r.days); return d.toISOString()
     })()
     const params = new URLSearchParams()
-    if (vendor) params.set('vendor', vendor)
-    if (since)  params.set('since',  since)
+    if (salesRep) params.set('salesRep', salesRep)
+    if (since)    params.set('since',    since)
     setLoading(true); setError(null)
     fetch(`/api/reports?${params.toString()}`)
       .then(r => r.json())
       .then(d => { if (d.error) throw new Error(d.error); setData(d) })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
-  }, [range, vendor])
+  }, [range, salesRep])
 
   const lb     = data?.leaderboard || []
   const recent = data?.recent      || []
@@ -293,8 +284,9 @@ export default function Reports() {
                 </div>
               </div>
               <div style={{ display:'flex', gap:10, paddingTop:4, flex:'0 0 auto' }}>
-                <select value={vendor} onChange={e=>setVendor(e.target.value)} style={selectStyle()}>
-                  {VENDORS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+                <select value={salesRep} onChange={e=>setSalesRep(e.target.value)} style={selectStyle()}>
+                  <option value="">All sales reps</option>
+                  {(data?.reps || []).map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
                 <select value={range} onChange={e=>setRange(e.target.value)} style={selectStyle()}>
                   {RANGES.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}

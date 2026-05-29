@@ -10,8 +10,8 @@ export default async function handler(req, res) {
   if (!auth.ok) return res.status(auth.status).json({ error: auth.error })
   if (!sql) return res.status(200).json({ enabled: false, leaderboard: [], recent: [] })
 
-  const vendor = req.query.vendor || null
-  const since  = req.query.since  || null
+  const salesRep = req.query.salesRep || null
+  const since    = req.query.since    || null
 
   try {
     const leaderboard = await sql`
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
           THEN ROUND((SUM(issues)::numeric / SUM(total_lines)::numeric * 100), 1)
           ELSE 0 END                           AS issue_rate
       FROM verifications
-      WHERE (${vendor}::text IS NULL OR vendor = ${vendor})
+      WHERE (${salesRep}::text IS NULL OR COALESCE(sales_rep, '(Unattributed)') = ${salesRep})
         AND (${since}::timestamptz IS NULL OR created_at >= ${since}::timestamptz)
       GROUP BY COALESCE(sales_rep, '(Unattributed)')
       ORDER BY issue_rate DESC NULLS LAST, orders DESC
@@ -38,13 +38,19 @@ export default async function handler(req, res) {
       SELECT id, created_at, job_address, sales_rep, vendor,
              total_lines, matched, issues, missing, overall_status
       FROM verifications
-      WHERE (${vendor}::text IS NULL OR vendor = ${vendor})
+      WHERE (${salesRep}::text IS NULL OR COALESCE(sales_rep, '(Unattributed)') = ${salesRep})
         AND (${since}::timestamptz IS NULL OR created_at >= ${since}::timestamptz)
       ORDER BY created_at DESC
       LIMIT 50
     `
 
-    return res.status(200).json({ enabled: true, leaderboard, recent })
+    const reps = await sql`
+      SELECT DISTINCT COALESCE(sales_rep, '(Unattributed)') AS sales_rep
+      FROM verifications
+      ORDER BY sales_rep ASC
+    `
+
+    return res.status(200).json({ enabled: true, leaderboard, recent, reps: reps.map(r => r.sales_rep) })
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: err.message })
