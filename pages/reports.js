@@ -157,8 +157,8 @@ function Sidebar({ active }) {
           <div style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13, color:CL.paper, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
             {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.primaryEmailAddress?.emailAddress : 'Highland Cabinetry'}
           </div>
-          <div style={{ fontFamily:CL.ui, fontSize:11.5, color:'rgba(242,231,210,0.5)', textTransform:'capitalize' }}>
-            {isManager ? 'Manager' : 'Sales'} · Highland Cabinetry CO
+          <div style={{ fontFamily:CL.ui, fontSize:11.5, color:'rgba(242,231,210,0.5)' }}>
+            {user?.publicMetadata?.title || (isManager ? 'Manager' : 'Sales')} · Highland Cabinetry CO
           </div>
         </div>
       </div>

@@ -45,13 +45,19 @@ export default async function handler(req, res) {
       const rep = findRepByEmail(primaryEmail)
       const existing = user.public_metadata || {}
 
-      if (rep && existing.role !== rep.role) {
-        const client = await clerkClient()
-        await client.users.updateUserMetadata(user.id, {
-          publicMetadata: { ...existing, role: rep.role, fullName: rep.name },
-        })
-        console.log(`Auto-assigned role '${rep.role}' to ${primaryEmail} (${rep.name})`)
-      } else if (!rep) {
+      if (rep) {
+        const needsUpdate =
+          existing.role !== rep.role ||
+          existing.title !== rep.title ||
+          existing.fullName !== rep.name
+        if (needsUpdate) {
+          const client = await clerkClient()
+          await client.users.updateUserMetadata(user.id, {
+            publicMetadata: { ...existing, role: rep.role, title: rep.title, fullName: rep.name },
+          })
+          console.log(`Synced ${primaryEmail} → ${rep.name} (${rep.title}, ${rep.role})`)
+        }
+      } else {
         console.log(`No roster match for ${primaryEmail}; default 'sales' role applies`)
       }
     }
