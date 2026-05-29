@@ -15,9 +15,6 @@ const CL = {
   mono:'"Spline Sans Mono", ui-monospace, monospace',
 }
 
-const HONEY  = { light:'#E8C079', mid:'#C68F45', dark:'#8A5C2C' }
-const WALNUT = { light:'#6E4A2B', mid:'#4C3019', dark:'#2A1709' }
-
 const ICN = {
   check:    <polyline points="20 6 9 17 4 12" />,
   alert:    <g><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></g>,
@@ -45,72 +42,6 @@ function Icon({ d, size = 18, color = 'currentColor', stroke = 2 }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
          strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" style={{ display:'block', flex:'0 0 auto' }}>
       {d}
-    </svg>
-  )
-}
-
-function KerfC({ size = 96, shadow = true, tone = 'walnut', flat = false }) {
-  const uid = useMemo(() => Math.random().toString(36).slice(2, 9), [])
-  const C = 'M28,18 H72 V34 H44 V66 H72 V82 H28 Z'
-  const wood = tone === 'honey' ? HONEY : WALNUT
-  const flatFill = tone === 'honey' ? '#E2B670' : '#5C3A22'
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" style={{ display:'block', overflow:'visible' }} aria-label="Clavex">
-      <defs>
-        <filter id={`sh${uid}`} x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="2.2" stdDeviation="2.4" floodColor="#2a160a" floodOpacity="0.34" />
-        </filter>
-        <clipPath id={`cc${uid}`}><path d={C} /></clipPath>
-        <linearGradient id={`grad${uid}`} x1="0" y1="0" x2="0.7" y2="1">
-          <stop offset="0" stopColor={wood.light} />
-          <stop offset="0.5" stopColor={wood.mid} />
-          <stop offset="1" stopColor={wood.dark} />
-        </linearGradient>
-        <filter id={`fFine${uid}`} filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
-          <feTurbulence type="fractalNoise" baseFrequency="0.62 0.022" numOctaves="5" seed="6" stitchTiles="stitch" result="n" />
-          <feColorMatrix in="n" type="luminanceToAlpha" result="a" />
-          <feComponentTransfer in="a" result="b"><feFuncA type="gamma" amplitude="1.5" exponent="3.2" offset="-0.18" /></feComponentTransfer>
-          <feFlood floodColor="#1c0f05" result="c" /><feComposite in="c" in2="b" operator="in" />
-        </filter>
-        <filter id={`fHi${uid}`} filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
-          <feTurbulence type="fractalNoise" baseFrequency="0.40 0.018" numOctaves="4" seed="17" stitchTiles="stitch" result="n" />
-          <feColorMatrix in="n" type="luminanceToAlpha" result="a" />
-          <feComponentTransfer in="a" result="b"><feFuncA type="gamma" amplitude="1.1" exponent="3.6" offset="-0.28" /></feComponentTransfer>
-          <feFlood floodColor="#fff0d6" result="c" /><feComposite in="c" in2="b" operator="in" />
-        </filter>
-        <filter id={`fMot${uid}`} filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
-          <feTurbulence type="fractalNoise" baseFrequency="0.05 0.012" numOctaves="2" seed="10" stitchTiles="stitch" result="n" />
-          <feColorMatrix in="n" type="luminanceToAlpha" result="a" />
-          <feComponentTransfer in="a" result="b"><feFuncA type="linear" slope="0.5" intercept="-0.05" /></feComponentTransfer>
-          <feFlood floodColor="#23130a" result="c" /><feComposite in="c" in2="b" operator="in" />
-        </filter>
-        <linearGradient id={`kerf${uid}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#F6CE96" />
-          <stop offset="0.5" stopColor="#D9742F" />
-          <stop offset="1" stopColor="#A83D17" />
-        </linearGradient>
-      </defs>
-      <g filter={shadow ? `url(#sh${uid})` : undefined}>
-        {flat ? (
-          <path d={C} fill={flatFill} stroke="rgba(20,10,4,0.4)" strokeWidth="0.9" strokeLinejoin="round" />
-        ) : (
-          <>
-            <g clipPath={`url(#cc${uid})`}>
-              <rect x="0" y="0" width="100" height="100" fill={`url(#grad${uid})`} />
-              <rect x="0" y="0" width="100" height="100" filter={`url(#fMot${uid})`} opacity="0.5" style={{ mixBlendMode:'multiply' }} />
-              <rect x="0" y="0" width="100" height="100" filter={`url(#fFine${uid})`} opacity="0.7" style={{ mixBlendMode:'multiply' }} />
-              <rect x="0" y="0" width="100" height="100" filter={`url(#fHi${uid})`} opacity="0.45" style={{ mixBlendMode:'screen' }} />
-              <path d={C} fill="none" stroke="rgba(255,243,222,0.55)" strokeWidth="1.6" strokeLinejoin="round" transform="translate(-0.7,-0.7)" />
-              <path d={C} fill="none" stroke="rgba(0,0,0,0.42)" strokeWidth="1.6" strokeLinejoin="round" transform="translate(0.7,0.8)" />
-            </g>
-            <path d={C} fill="none" stroke="rgba(20,10,4,0.45)" strokeWidth="0.9" strokeLinejoin="round" />
-          </>
-        )}
-        <g clipPath={`url(#cc${uid})`}>
-          <polygon points="78,12 84,18 22,90 16,84" fill={`url(#kerf${uid})`} />
-          <polygon points="78,12 80,14 18,86 16,84" fill="#FBE0B4" opacity="0.85" />
-        </g>
-      </g>
     </svg>
   )
 }
@@ -287,7 +218,7 @@ export default function Clavex() {
   return (
     <>
       <Head>
-        <title>Clavex — Order Verification</title>
+        <title>Clavex · Order Verification</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -299,7 +230,7 @@ export default function Clavex() {
         {/* ───── Sidebar ───── */}
         <aside style={{ width:244, flex:'0 0 244px', background:CL.espresso, display:'flex', flexDirection:'column', padding:'22px 16px 18px' }}>
           <div style={{ display:'flex', alignItems:'center', gap:11, padding:'0 6px 22px' }}>
-            <KerfC size={30} tone="honey" shadow={false} />
+            <img src="/clavex-key/honey.svg" width={34} height={34} alt="Clavex" style={{ display:'block' }} />
             <span style={{ fontFamily:CL.display, fontWeight:700, fontSize:21, color:CL.paper, letterSpacing:'-0.01em' }}>Clavex</span>
           </div>
 
@@ -564,7 +495,7 @@ function VTable({ items, openRow, setOpenRow }) {
               style={{ display:'grid', gridTemplateColumns:grid, gap:14, padding:'13px 18px', alignItems:'center',
                 cursor: hasNote ? 'pointer' : 'default', background: isOpen ? 'rgba(191,85,39,0.04)' : 'transparent' }}>
               <div style={{ fontFamily:CL.mono, fontSize:13, fontWeight:600, color:CL.ink, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.designSku || '–'}</div>
-              <div style={{ fontFamily:CL.ui, fontSize:13, color:CL.walnut, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.description || '—'}</div>
+              <div style={{ fontFamily:CL.ui, fontSize:13, color:CL.walnut, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.description || '–'}</div>
               <div style={{ fontFamily:CL.mono, fontSize:13, color: r.invoiceSku ? CL.oak : CL.ironLt, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.invoiceSku || '–'}</div>
               <div style={{ fontFamily:CL.mono, fontSize:13, textAlign:'center', color: dqDisp === '–' ? CL.ironLt : CL.ink }}>{dqDisp}</div>
               <div style={{ fontFamily:CL.mono, fontSize:13, textAlign:'center', fontWeight: qtyBad ? 700 : 400, color: qtyBad ? CL.miss : (iqDisp === 0 ? CL.ironLt : CL.ink) }}>{iqDisp}</div>

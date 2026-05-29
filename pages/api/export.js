@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   // Summary
   const { meta, summary } = report
   const summaryRows = [
-    ['CLAVEX — CABINET ORDER VERIFICATION'],
+    ['CLAVEX · CABINET ORDER VERIFICATION'],
     ['Highland Cabinetry 08, Inc'],
     [],
     ['Job Address:', meta?.jobAddress||''],
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
 
   // All Items
   const allRows = [['STATUS','DESIGN SKU','INVOICE SKU','DESCRIPTION','SECTION','D QTY','I QTY','TYPE','PRICE','NOTE'],
-    ...report.items.map(i=>[i.status.toUpperCase().replace('_',' '),i.designSku||'—',i.invoiceSku||'—',i.description,i.section||'—',i.designQty||0,i.invoiceQty||0,i.itemType,i.price?`$${i.price.toFixed(2)}`:'—',i.note||''])]
+    ...report.items.map(i=>[i.status.toUpperCase().replace('_',' '),i.designSku||'–',i.invoiceSku||'–',i.description,i.section||'–',i.designQty||0,i.invoiceQty||0,i.itemType,i.price?`$${i.price.toFixed(2)}`:'–',i.note||''])]
   const ws2 = XLSX.utils.aoa_to_sheet(allRows)
   ws2['!cols'] = [14,20,20,36,14,8,8,12,10,50].map(w=>({wch:w}))
   XLSX.utils.book_append_sheet(wb, ws2, 'All Items')
@@ -51,14 +51,14 @@ export default async function handler(req, res) {
   // Discrepancies
   const issues = report.items.filter(i=>!['match','handed_merge'].includes(i.status))
   const discRows = [['ISSUE','SKU','DESCRIPTION','D QTY','I QTY','SECTION','NOTE'],
-    ...(issues.length ? issues.map(i=>[i.status.toUpperCase().replace('_',' '),i.invoiceSku||i.designSku||'—',i.description,i.designQty||0,i.invoiceQty||0,i.section||'—',i.note||'']) : [['NO DISCREPANCIES','','','','','','']])]
+    ...(issues.length ? issues.map(i=>[i.status.toUpperCase().replace('_',' '),i.invoiceSku||i.designSku||'–',i.description,i.designQty||0,i.invoiceQty||0,i.section||'–',i.note||'']) : [['NO DISCREPANCIES','','','','','','']])]
   const ws3 = XLSX.utils.aoa_to_sheet(discRows)
   ws3['!cols'] = [18,22,36,8,8,14,50].map(w=>({wch:w}))
   XLSX.utils.book_append_sheet(wb, ws3, 'Discrepancies')
 
   // Trim
   const trimRows = [['TRIM ITEM','HEIGHT','SUGGESTED QTY','UNIT','INVOICED QTY','STATUS','NOTE'],
-    ...(trimData?.trimSuggestions||[]).map(t=>[t.itemType,t.height||'—',t.suggestedQty,t.unit,t.invoicedQty??'—',(t.status||'').toUpperCase(),t.note||''])]
+    ...(trimData?.trimSuggestions||[]).map(t=>[t.itemType,t.height||'–',t.suggestedQty,t.unit,t.invoicedQty??'–',(t.status||'').toUpperCase(),t.note||''])]
   if (trimData?.layoutNotes) { trimRows.push([]); trimRows.push(['Layout notes:', trimData.layoutNotes]) }
   const ws4 = XLSX.utils.aoa_to_sheet(trimRows)
   ws4['!cols'] = [22,10,14,8,14,12,50].map(w=>({wch:w}))
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
 
   // Sign-Off
   const signRows = [
-    ['CABINET ORDER SIGN-OFF — CLAVEX'],
+    ['CABINET ORDER SIGN-OFF · CLAVEX'],
     ['Job:', meta?.jobAddress||''], ['Invoice #:', meta?.invoiceNumber||''], [],
     ['CHECKLIST','DONE','INITIALS','NOTES'],
     ['All SKUs verified against design','☐','',''],
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
     ['Trim quantities verified','☐','',''],
     ['Touch-up kits included','☐','',''],
     [],['DISCREPANCY RESOLUTION','RESOLVED','INITIALS','NOTES'],
-    ...(issues.length ? issues.map(i=>[`${i.status.toUpperCase()}: ${i.invoiceSku||i.designSku} — ${i.note}`,'☐','','']) : [['No discrepancies ✅','','','']]),
+    ...(issues.length ? issues.map(i=>[`${i.status.toUpperCase()}: ${i.invoiceSku||i.designSku} · ${i.note}`,'☐','','']) : [['No discrepancies ✅','','','']]),
     [],['Approved by:','_________________________','Date:','___________']
   ]
   const ws5 = XLSX.utils.aoa_to_sheet(signRows)

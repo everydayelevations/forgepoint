@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useUser, UserButton } from '@clerk/nextjs'
@@ -26,9 +26,6 @@ const CL = {
   ui:'"Hanken Grotesk", system-ui, sans-serif',
   mono:'"Spline Sans Mono", ui-monospace, monospace',
 }
-
-const HONEY  = { light:'#E8C079', mid:'#C68F45', dark:'#8A5C2C' }
-const WALNUT = { light:'#6E4A2B', mid:'#4C3019', dark:'#2A1709' }
 
 const ICN = {
   check:    <polyline points="20 6 9 17 4 12" />,
@@ -62,46 +59,6 @@ function Icon({ d, size = 18, color = 'currentColor', stroke = 2 }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
          strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" style={{ display:'block', flex:'0 0 auto' }}>
       {d}
-    </svg>
-  )
-}
-
-function KerfC({ size = 30 }) {
-  const uid = useMemo(() => Math.random().toString(36).slice(2, 9), [])
-  const C = 'M28,18 H72 V34 H44 V66 H72 V82 H28 Z'
-  const wood = HONEY
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" style={{ display:'block', overflow:'visible' }} aria-label="Clavex">
-      <defs>
-        <clipPath id={`cc${uid}`}><path d={C} /></clipPath>
-        <linearGradient id={`grad${uid}`} x1="0" y1="0" x2="0.7" y2="1">
-          <stop offset="0" stopColor={wood.light} />
-          <stop offset="0.5" stopColor={wood.mid} />
-          <stop offset="1" stopColor={wood.dark} />
-        </linearGradient>
-        <filter id={`fFine${uid}`} filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
-          <feTurbulence type="fractalNoise" baseFrequency="0.62 0.022" numOctaves="5" seed="6" stitchTiles="stitch" result="n" />
-          <feColorMatrix in="n" type="luminanceToAlpha" result="a" />
-          <feComponentTransfer in="a" result="b"><feFuncA type="gamma" amplitude="1.5" exponent="3.2" offset="-0.18" /></feComponentTransfer>
-          <feFlood floodColor="#1c0f05" result="c" /><feComposite in="c" in2="b" operator="in" />
-        </filter>
-        <linearGradient id={`kerf${uid}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#F6CE96" />
-          <stop offset="0.5" stopColor="#D9742F" />
-          <stop offset="1" stopColor="#A83D17" />
-        </linearGradient>
-      </defs>
-      <g>
-        <g clipPath={`url(#cc${uid})`}>
-          <rect x="0" y="0" width="100" height="100" fill={`url(#grad${uid})`} />
-          <rect x="0" y="0" width="100" height="100" filter={`url(#fFine${uid})`} opacity="0.7" style={{ mixBlendMode:'multiply' }} />
-        </g>
-        <path d={C} fill="none" stroke="rgba(20,10,4,0.45)" strokeWidth="0.9" strokeLinejoin="round" />
-        <g clipPath={`url(#cc${uid})`}>
-          <polygon points="78,12 84,18 22,90 16,84" fill={`url(#kerf${uid})`} />
-          <polygon points="78,12 80,14 18,86 16,84" fill="#FBE0B4" opacity="0.85" />
-        </g>
-      </g>
     </svg>
   )
 }
@@ -171,7 +128,7 @@ function Sidebar({ active }) {
   return (
     <aside style={{ width:244, flex:'0 0 244px', background:CL.espresso, display:'flex', flexDirection:'column', padding:'22px 16px 18px', position:'sticky', top:0, height:'100vh' }}>
       <Link href="/" style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:11, padding:'0 6px 22px' }}>
-        <KerfC size={30} />
+        <img src="/clavex-key/honey.svg" width={34} height={34} alt="Clavex" style={{ display:'block' }} />
         <span style={{ fontFamily:CL.display, fontWeight:700, fontSize:21, color:CL.paper, letterSpacing:'-0.01em' }}>Clavex</span>
       </Link>
 
@@ -210,13 +167,13 @@ function Sidebar({ active }) {
 }
 
 function fmtDate(iso) {
-  if (!iso) return '—'
+  if (!iso) return '–'
   const d = new Date(iso)
   return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' })
 }
 
 function fmtRate(n) {
-  if (n === null || n === undefined) return '—'
+  if (n === null || n === undefined) return '–'
   return `${Number(n).toFixed(1)}%`
 }
 
@@ -260,7 +217,7 @@ export default function Reports() {
   return (
     <>
       <Head>
-        <title>Clavex — Reports</title>
+        <title>Clavex · Reports</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -406,7 +363,7 @@ function RecentTable({ rows, onOpen }) {
           onMouseEnter={e => e.currentTarget.style.background = 'rgba(191,85,39,0.04)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
           <div style={{ fontFamily:CL.mono, fontSize:12.5, color:CL.iron }}>{fmtDate(r.created_at)}</div>
-          <div style={{ fontFamily:CL.ui, fontSize:13, color:CL.ink, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.job_address || '—'}</div>
+          <div style={{ fontFamily:CL.ui, fontSize:13, color:CL.ink, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.job_address || '–'}</div>
           <div style={{ fontFamily:CL.ui, fontSize:13, color: r.sales_rep ? CL.walnut : CL.ironLt, fontWeight: r.sales_rep ? 600 : 400, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.sales_rep || '(Unattributed)'}</div>
           <div style={{ fontFamily:CL.ui, fontSize:13, color:CL.iron, textTransform:'capitalize' }}>{r.vendor}</div>
           <div style={{ fontFamily:CL.mono, fontSize:13, textAlign:'right', color:CL.ink }}>{r.total_lines}</div>
@@ -523,7 +480,7 @@ function ItemsTable({ items }) {
           <div key={i} style={{ display:'grid', gridTemplateColumns:grid, gap:10, padding:'10px 14px', alignItems:'center',
             borderTop:`1px solid ${CL.sand}`, fontSize:12 }}>
             <div style={{ fontFamily:CL.mono, color:CL.ink, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.designSku || '–'}</div>
-            <div style={{ fontFamily:CL.ui, color:CL.walnut, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.description || '—'}</div>
+            <div style={{ fontFamily:CL.ui, color:CL.walnut, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.description || '–'}</div>
             <div style={{ fontFamily:CL.mono, color: r.invoiceSku ? CL.oak : CL.ironLt, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.invoiceSku || '–'}</div>
             <div style={{ fontFamily:CL.mono, textAlign:'center', color:CL.ink }}>{r.designQty ?? 0}</div>
             <div style={{ fontFamily:CL.mono, textAlign:'center', color: status === 'miss' ? CL.ironLt : CL.ink }}>{r.invoiceQty ?? 0}</div>
