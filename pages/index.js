@@ -132,7 +132,7 @@ export default function Clavex() {
   const isManager = role === 'manager'
   const [designFiles, setDesignFiles]   = useState([])
   const [invoiceFiles, setInvoiceFiles] = useState([])
-  const [vendor, setVendor]             = useState('highland')
+  const vendor = 'highland'
   const [loading, setLoading]           = useState(false)
   const [loadingMsg, setLoadingMsg]     = useState('')
   const [report, setReport]             = useState(null)
@@ -230,7 +230,7 @@ export default function Clavex() {
         {/* ───── Sidebar ───── */}
         <aside style={{ width:244, flex:'0 0 244px', background:CL.espresso, display:'flex', flexDirection:'column', padding:'22px 16px 18px' }}>
           <div style={{ display:'flex', alignItems:'center', gap:11, padding:'0 6px 22px' }}>
-            <img src="/clavex-key/honey.svg" width={34} height={34} alt="Clavex" style={{ display:'block' }} />
+            <img src="/clavex-key/animated-honey.svg" width={34} height={34} alt="Clavex" style={{ display:'block' }} />
             <span style={{ fontFamily:CL.display, fontWeight:700, fontSize:21, color:CL.paper, letterSpacing:'-0.01em' }}>Clavex</span>
           </div>
 
@@ -326,7 +326,6 @@ export default function Clavex() {
               <UploadCard
                 designFiles={designFiles} setDesignFiles={setDesignFiles}
                 invoiceFiles={invoiceFiles} setInvoiceFiles={setInvoiceFiles}
-                vendor={vendor} setVendor={setVendor}
                 runVerify={runVerify} runDemo={runDemo}
                 designRef={designRef} invoiceRef={invoiceRef}
                 error={error}
@@ -394,7 +393,7 @@ export default function Clavex() {
 }
 
 /* ─────────────────────────────────────────── Upload card ── */
-function UploadCard({ designFiles, setDesignFiles, invoiceFiles, setInvoiceFiles, vendor, setVendor, runVerify, runDemo, designRef, invoiceRef, error }) {
+function UploadCard({ designFiles, setDesignFiles, invoiceFiles, setInvoiceFiles, runVerify, runDemo, designRef, invoiceRef, error }) {
   const zones = [
     { label:'Design files (2020 Design export)', files:designFiles, set:setDesignFiles, ref:designRef },
     { label:'Sales estimates / invoices',         files:invoiceFiles, set:setInvoiceFiles, ref:invoiceRef },
@@ -434,16 +433,6 @@ function UploadCard({ designFiles, setDesignFiles, invoiceFiles, setInvoiceFiles
       </div>
 
       <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
-        <select value={vendor} onChange={e => setVendor(e.target.value)} style={{
-          height:40, padding:'0 12px', borderRadius:9, border:`1px solid ${CL.sand}`,
-          background:CL.paper, color:CL.walnut, fontFamily:CL.ui, fontWeight:600, fontSize:13.5, cursor:'pointer',
-        }}>
-          <option value="highland">Highland Cabinetry</option>
-          <option value="kraftmaid">KraftMaid</option>
-          <option value="merillat">Merillat</option>
-          <option value="ultracraft">UltraCraft</option>
-          <option value="waypoint">Waypoint</option>
-        </select>
         <Btn primary icon={ICN.check} onClick={runVerify} disabled={!designFiles.length || !invoiceFiles.length}>Analyze</Btn>
         <Btn onClick={runDemo}>Demo · Arkansas Ave</Btn>
       </div>
