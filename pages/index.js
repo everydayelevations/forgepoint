@@ -189,7 +189,7 @@ export default function Clavex() {
     if (!report) return
     setExporting(true)
     try {
-      const res = await fetch('/api/export', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ report, trimData }) })
+      const res = await fetch('/api/export', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ report, trimData, designReview }) })
       const blob = await res.blob()
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)

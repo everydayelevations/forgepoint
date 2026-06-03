@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const auth = await requireAuth(req, ['manager', 'sales'])
   if (!auth.ok) return res.status(auth.status).json({ error: auth.error })
-  const { report, trimData } = req.body
+  const { report, trimData, designReview } = req.body
   if (!report) return res.status(400).json({ error: 'Missing report' })
 
   const wb = XLSX.utils.book_new()
@@ -72,6 +72,27 @@ export default async function handler(req, res) {
   const ws4 = XLSX.utils.aoa_to_sheet(trimRows)
   ws4['!cols'] = [22,10,14,11,13,14,12,50].map(w=>({wch:w}))
   XLSX.utils.book_append_sheet(wb, ws4, 'Trim Suggestions')
+
+  // Design Review (AI design bot) — only when present
+  if (designReview && ((designReview.issues||[]).length || (designReview.estimateNotes||[]).length)) {
+    const NOTE_LABEL = { crown:'Crown', hinge:'Hinge side', exposed_back:'Exposed back', color:'Color codes' }
+    const issues = designReview.issues || []
+    const notes  = designReview.estimateNotes || []
+    const drRows = [
+      ['DESIGN REVIEW · AI BOT'],
+      ['Job:', meta?.jobAddress||''], [],
+      ['DESIGN ISSUES'],
+      ['SEVERITY','CATEGORY','TITLE','DETAIL'],
+      ...(issues.length ? issues.map(it=>[String(it.severity||'').toUpperCase(),it.category||'',it.title||'',it.detail||'']) : [['–','–','No design issues flagged','']]),
+      [],
+      ['ESTIMATE NOTES'],
+      ['CATEGORY','NOTE'],
+      ...(notes.length ? notes.map(n=>[NOTE_LABEL[n.category]||n.category||'',n.detail||n.title||'']) : [['–','None']]),
+    ]
+    const ws6 = XLSX.utils.aoa_to_sheet(drRows)
+    ws6['!cols'] = [12,14,34,64].map(w=>({wch:w}))
+    XLSX.utils.book_append_sheet(wb, ws6, 'Design Review')
+  }
 
   // Sign-Off
   const signRows = [
