@@ -514,18 +514,26 @@ function VTable({ items, openRow, setOpenRow }) {
 }
 
 /* ─────────────────────────────────────────── Trim card ── */
-const unitLabel = (u) => ({ LF: 'lineal ft', EA: 'ea', IN: 'in' }[String(u || '').toUpperCase()] || u || '')
+// Trim/moldings are stocked in 8-foot sticks; order with a 20% waste factor.
+const STICK_FT = 8, WASTE = 1.2
+const sticksFromLF = (lf) => Math.ceil((lf / STICK_FT) * WASTE)
+const unitLabel = (u, qty) => {
+  const k = String(u || '').toUpperCase()
+  if (k === 'STK') return qty === 1 ? 'stick' : 'sticks'
+  return { LF: 'lineal ft', EA: 'ea', IN: 'in' }[k] || u || ''
+}
 
 // Convert a trim row into the chosen display unit. Only lineal-foot runs
-// convert (feet ↔ inches, ×12); discrete EA pieces are shown as-is.
+// convert (feet ↔ inches ×12, or 8-ft sticks); discrete EA pieces are as-is.
 function displayMeasure(row, mode) {
   const u = String(row.unit || '').toUpperCase()
-  if (u === 'LF' && mode === 'IN') return { qty: +(row.suggestedQty * 12).toFixed(1), unit: 'IN' }
+  if (u === 'LF' && mode === 'IN')  return { qty: +(row.suggestedQty * 12).toFixed(1), unit: 'IN' }
+  if (u === 'LF' && mode === 'STK') return { qty: sticksFromLF(row.suggestedQty), unit: 'STK' }
   return { qty: row.suggestedQty, unit: row.unit }
 }
 
 function UnitToggle({ mode, setMode }) {
-  const opts = [['LF', 'ft'], ['IN', 'in']]
+  const opts = [['LF', 'ft'], ['IN', 'in'], ['STK', 'sticks']]
   return (
     <div style={{ marginLeft:'auto', display:'flex', gap:2, padding:2, background:CL.cream, border:`1px solid ${CL.sand}`, borderRadius:999 }}>
       {opts.map(([val, lbl]) => {
@@ -562,7 +570,7 @@ function TrimCard({ trim }) {
             return (
               <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:CL.cream, borderRadius:9, border:`1px solid ${CL.sand}` }}>
                 <span style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13, color:CL.ink }}>{r.itemType}{r.height ? ` · ${r.height}` : ''}</span>
-                <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12.5, color:CL.walnut }}>{m.qty} {unitLabel(m.unit)}</span>
+                <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12.5, color:CL.walnut }}>{m.qty} {unitLabel(m.unit, m.qty)}</span>
                 {needsAdd
                   ? <span style={{ fontFamily:CL.ui, fontWeight:700, fontSize:11, color:CL.ember, background:'rgba(191,85,39,0.12)', padding:'3px 8px', borderRadius:999 }}>+ Add</span>
                   : <Icon d={ICN.check} size={15} color={CL.match} stroke={2.6} />}

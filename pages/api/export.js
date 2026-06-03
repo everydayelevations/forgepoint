@@ -56,13 +56,14 @@ export default async function handler(req, res) {
   ws3['!cols'] = [18,22,36,8,8,14,50].map(w=>({wch:w}))
   XLSX.utils.book_append_sheet(wb, ws3, 'Discrepancies')
 
-  // Trim
+  // Trim — moldings ship in 8-ft sticks; order qty includes a 20% waste factor
   const unitLabel = (u) => ({ LF: 'lineal ft', EA: 'ea', IN: 'in' }[String(u||'').toUpperCase()] || u || '')
-  const trimRows = [['TRIM ITEM','HEIGHT','SUGGESTED QTY','UNIT','INVOICED QTY','STATUS','NOTE'],
-    ...(trimData?.trimSuggestions||[]).map(t=>[t.itemType,t.height||'–',t.suggestedQty,unitLabel(t.unit),t.invoicedQty??'–',(t.status||'').toUpperCase(),t.note||''])]
+  const sticksFromLF = (lf) => Math.ceil((lf / 8) * 1.2)
+  const trimRows = [['TRIM ITEM','HEIGHT','SUGGESTED QTY','UNIT','STICKS (8FT)','INVOICED QTY','STATUS','NOTE'],
+    ...(trimData?.trimSuggestions||[]).map(t=>[t.itemType,t.height||'–',t.suggestedQty,unitLabel(t.unit),String(t.unit||'').toUpperCase()==='LF'?sticksFromLF(t.suggestedQty):'–',t.invoicedQty??'–',(t.status||'').toUpperCase(),t.note||''])]
   if (trimData?.layoutNotes) { trimRows.push([]); trimRows.push(['Layout notes:', trimData.layoutNotes]) }
   const ws4 = XLSX.utils.aoa_to_sheet(trimRows)
-  ws4['!cols'] = [22,10,14,11,14,12,50].map(w=>({wch:w}))
+  ws4['!cols'] = [22,10,14,11,12,14,12,50].map(w=>({wch:w}))
   XLSX.utils.book_append_sheet(wb, ws4, 'Trim Suggestions')
 
   // Sign-Off
