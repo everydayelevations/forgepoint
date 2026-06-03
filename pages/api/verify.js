@@ -45,16 +45,58 @@ async function calcTrim(designText, designItems, invoiceItems) {
   catch { return { trimSuggestions: [], layoutNotes: 'Could not calculate trim. Review manually.' } }
 }
 
+// AI "design bot": reviews the design alone (no invoice) for common mistakes
+// and surfaces things that affect the estimate.
+async function reviewDesign(designText, designItems) {
+  const cabinets   = designItems.filter(i => i.itemType === 'cabinet')
+    .map(i => `${i.sku}${i.handed ? ` (${i.handed})` : ''} x${i.qty} [${i.section || '?'}]`).join(', ') || 'none'
+  const appliances = designItems.filter(i => i.itemType === 'appliance').map(i => i.sku).join(', ') || 'none'
+  const trim       = designItems.filter(i => i.itemType === 'trim').map(i => i.description || i.sku).join(', ') || 'none'
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-20250514', max_tokens: 1600,
+    system: `You are a senior kitchen designer reviewing a cabinet DESIGN (no invoice) for an estimator. Catch common mistakes and surface things that change the estimate. Return ONLY valid JSON:
+{ "issues": [{ "category": "filler"|"appliance"|"layout", "severity": "high"|"medium"|"low", "title": "string", "detail": "string" }],
+  "estimateNotes": [{ "category": "crown"|"hinge"|"exposed_back"|"color", "title": "string", "detail": "string" }] }
+CHECKS — report only what applies:
+- FILLER: flag inside corners and any run dying into a wall that lacks filler (need ~1.5–3" for door/drawer clearance and scribe).
+- APPLIANCE: flag if common appliances appear to be missing — dishwasher, refrigerator/fridge, sink base. Name what's absent.
+- CROWN (estimateNote): state whether crown molding is present in the design; the estimator needs to know either way.
+- HINGE (estimateNote): for any single-door cabinet under 24" wide, note whether hinge side (left/right) is specified; flag ones that are not handed.
+- EXPOSED_BACK (estimateNote): identify cabinets whose back is visible (island, peninsula, end of a run) that need a finished back / skin panel.
+- COLOR (estimateNote): verify color codes are consistent; on multi-color jobs flag any cabinet missing a color or where the color is ambiguous.
+Keep every detail to one concise sentence. Return empty arrays if nothing applies.`,
+    messages: [{ role: 'user', content: `Design text:\n${designText || '(structured items only)'}\n\nCabinets: ${cabinets}\nAppliances: ${appliances}\nTrim: ${trim}` }]
+  })
+  const raw = response.content[0].text.replace(/```json|```/g, '').trim()
+  try { return JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}')+1)) }
+  catch { return { issues: [], estimateNotes: [] } }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const auth = await requireAuth(req, ['manager', 'sales'])
   if (!auth.ok) return res.status(auth.status).json({ error: auth.error })
   try {
-    const { demo, designUrls, invoiceUrls, vendor = 'highland' } = req.body
+    const { demo, designUrls, invoiceUrls, vendor = 'highland', reviewOnly } = req.body
     let designExtracted, invoiceExtracted, rawDesignText
 
     const designList  = Array.isArray(designUrls)  ? designUrls  : []
     const invoiceList = Array.isArray(invoiceUrls) ? invoiceUrls : []
+
+    // Design-only AI review: no invoice required.
+    if (reviewOnly && designList.length) {
+      const designParts = await Promise.all(designList.map(u => extractFromUrl(u, 'design')))
+      const items = designParts.flatMap(p => p.items || [])
+      const designReview = await reviewDesign('', items)
+      return res.status(200).json({
+        designReview,
+        designMeta: {
+          jobAddress: designParts.map(p => p.jobAddress).find(Boolean) || '',
+          cabinets:   items.filter(i => i.itemType === 'cabinet').length,
+          appliances: items.filter(i => i.itemType === 'appliance').length,
+        },
+      })
+    }
 
     if (demo) {
       designExtracted  = { ...DEMO_DESIGN,  documentType: 'design'  }
@@ -101,7 +143,10 @@ export default async function handler(req, res) {
     report.meta.salesRepRaw   = rawRep
     report.meta.salesRepResolved = !!matchedRep
 
-    const trimData = await calcTrim(rawDesignText, designExtracted.items||[], invoiceExtracted.items||[])
+    const [trimData, designReview] = await Promise.all([
+      calcTrim(rawDesignText, designExtracted.items||[], invoiceExtracted.items||[]),
+      reviewDesign(rawDesignText, designExtracted.items||[]),
+    ])
 
     let savedId = null
     if (!demo) {
@@ -130,7 +175,7 @@ export default async function handler(req, res) {
     }
     report.meta.id = savedId
 
-    return res.status(200).json({ report, trimData })
+    return res.status(200).json({ report, trimData, designReview })
   } catch(err) {
     console.error(err)
     return res.status(500).json({ error: err.message })

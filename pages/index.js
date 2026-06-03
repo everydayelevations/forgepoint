@@ -137,6 +137,7 @@ export default function Clavex() {
   const [loadingMsg, setLoadingMsg]     = useState('')
   const [report, setReport]             = useState(null)
   const [trimData, setTrimData]         = useState(null)
+  const [designReview, setDesignReview] = useState(null)
   const [error, setError]               = useState(null)
   const [exporting, setExporting]       = useState(false)
   const [openRow, setOpenRow]           = useState(-1)
@@ -145,21 +146,22 @@ export default function Clavex() {
   const invoiceRef = useRef()
 
   const MSGS = ['Uploading PDFs…','Extracting SKUs with AI…','Matching line items…','Calculating trim quantities…','Building report…']
+  const REVIEW_MSGS = ['Uploading design…','Reading the layout…','Checking fillers & appliances…','Reviewing crown, hinges & color…','Compiling notes…']
 
   async function uploadOne(file) {
     const blob = await upload(file.name, file, { access:'public', handleUploadUrl:'/api/blob-upload' })
     return blob.url
   }
 
-  async function call(body) {
-    setLoading(true); setError(null); setReport(null); setTrimData(null); setOpenRow(-1); setSignoff([false,false,false,false])
-    let mi = 0; setLoadingMsg(MSGS[0])
-    const iv = setInterval(() => { mi=(mi+1)%MSGS.length; setLoadingMsg(MSGS[mi]) }, 1800)
+  async function call(body, msgs = MSGS) {
+    setLoading(true); setError(null); setReport(null); setTrimData(null); setDesignReview(null); setOpenRow(-1); setSignoff([false,false,false,false])
+    let mi = 0; setLoadingMsg(msgs[0])
+    const iv = setInterval(() => { mi=(mi+1)%msgs.length; setLoadingMsg(msgs[mi]) }, 1800)
     try {
       const res = await fetch('/api/verify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setReport(data.report); setTrimData(data.trimData)
+      setReport(data.report || null); setTrimData(data.trimData || null); setDesignReview(data.designReview || null)
       const firstFlag = (data.report?.items || []).findIndex(i => SPEC_STATUS[i.status] !== 'match')
       if (firstFlag >= 0) setOpenRow(firstFlag)
     } catch(e) { setError(e.message) }
@@ -177,6 +179,12 @@ export default function Clavex() {
     await call({ designUrls, invoiceUrls, vendor })
   }
 
+  async function runReview() {
+    if (!designFiles.length) return
+    const designUrls = await Promise.all(designFiles.map(uploadOne))
+    await call({ designUrls, vendor, reviewOnly:true }, REVIEW_MSGS)
+  }
+
   async function exportExcel() {
     if (!report) return
     setExporting(true)
@@ -192,7 +200,7 @@ export default function Clavex() {
   }
 
   function reset() {
-    setReport(null); setTrimData(null); setError(null); setDesignFiles([]); setInvoiceFiles([]); setOpenRow(-1); setSignoff([false,false,false,false])
+    setReport(null); setTrimData(null); setDesignReview(null); setError(null); setDesignFiles([]); setInvoiceFiles([]); setOpenRow(-1); setSignoff([false,false,false,false])
   }
 
   const summary = report?.summary
@@ -322,14 +330,25 @@ export default function Clavex() {
           <div style={{ flex:1, overflow:'auto', padding:'22px 30px 30px', background:'linear-gradient(180deg,#FBF5EA,#F6EEDD)' }}>
 
             {/* ── No-report state: upload card ── */}
-            {!report && !loading && (
+            {!report && !designReview && !loading && (
               <UploadCard
                 designFiles={designFiles} setDesignFiles={setDesignFiles}
                 invoiceFiles={invoiceFiles} setInvoiceFiles={setInvoiceFiles}
-                runVerify={runVerify} runDemo={runDemo}
+                runVerify={runVerify} runDemo={runDemo} runReview={runReview}
                 designRef={designRef} invoiceRef={invoiceRef}
                 error={error}
               />
+            )}
+
+            {/* ── Design-only review ── */}
+            {designReview && !report && !loading && (
+              <div style={{ maxWidth:880 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, margin:'2px 2px 14px' }}>
+                  <h2 style={{ margin:0, fontFamily:CL.ui, fontWeight:700, fontSize:16, color:CL.ink }}>Design review</h2>
+                  <span style={{ fontFamily:CL.ui, fontSize:12.5, color:CL.iron }}>· AI bot · design only, no invoice compared</span>
+                </div>
+                <DesignReviewCard review={designReview} />
+              </div>
             )}
 
             {/* ── Loading ── */}
@@ -379,7 +398,8 @@ export default function Clavex() {
                     <VTable items={items} openRow={openRow} setOpenRow={setOpenRow} />
                   </div>
                   <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-                    <TrimCard trim={trimData} />
+                    <TrimCard trim={trimData} setTrim={setTrimData} />
+                    {designReview && <DesignReviewCard review={designReview} />}
                     <SignoffCard signoff={signoff} setSignoff={setSignoff} reviewCount={reviewCount} missingCount={missingCount} />
                   </div>
                 </div>
@@ -393,7 +413,7 @@ export default function Clavex() {
 }
 
 /* ─────────────────────────────────────────── Upload card ── */
-function UploadCard({ designFiles, setDesignFiles, invoiceFiles, setInvoiceFiles, runVerify, runDemo, designRef, invoiceRef, error }) {
+function UploadCard({ designFiles, setDesignFiles, invoiceFiles, setInvoiceFiles, runVerify, runDemo, runReview, designRef, invoiceRef, error }) {
   const zones = [
     { label:'Design files (2020 Design export)', files:designFiles, set:setDesignFiles, ref:designRef },
     { label:'Sales estimates / invoices',         files:invoiceFiles, set:setInvoiceFiles, ref:invoiceRef },
@@ -434,8 +454,12 @@ function UploadCard({ designFiles, setDesignFiles, invoiceFiles, setInvoiceFiles
 
       <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
         <Btn primary icon={ICN.check} onClick={runVerify} disabled={!designFiles.length || !invoiceFiles.length}>Analyze</Btn>
+        <Btn icon={ICN.search} onClick={runReview} disabled={!designFiles.length}>Review design only</Btn>
         <Btn onClick={runDemo}>Demo · Arkansas Ave</Btn>
       </div>
+      <p style={{ fontFamily:CL.ui, fontSize:12, color:CL.ironLt, margin:'10px 2px 0' }}>
+        “Review design only” runs the AI bot on the design with no invoice — it flags filler gaps, missing appliances, crown, hinge sides, exposed backs and color codes.
+      </p>
 
       {error && (
         <div style={{ marginTop:16, background:'rgba(166,57,31,0.08)', border:`1px solid ${CL.miss}`, borderRadius:11, padding:'11px 14px', color:CL.miss, fontFamily:CL.ui, fontSize:13 }}>
@@ -562,10 +586,18 @@ function UnitToggle({ mode, setMode }) {
   )
 }
 
-function TrimCard({ trim }) {
+function TrimCard({ trim, setTrim }) {
   const rows = trim?.trimSuggestions || []
   const [mode, setMode] = useState('LF')
   const hasLinear = rows.some(r => String(r.unit || '').toUpperCase() === 'LF')
+
+  // Editing a filler height recomputes its stock length / stick count live.
+  const editHeight = (i, value) => setTrim?.(prev => {
+    const next = [...(prev?.trimSuggestions || [])]
+    next[i] = { ...next[i], height: value }
+    return { ...prev, trimSuggestions: next }
+  })
+
   return (
     <div style={{ ...CARD, padding:18 }}>
       <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:4 }}>
@@ -583,16 +615,80 @@ function TrimCard({ trim }) {
           {rows.map((r, i) => {
             const needsAdd = r.status && r.status !== 'ok'
             const m = displayMeasure(r, mode)
+            const editable = isFiller(r) && setTrim
             return (
               <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:CL.cream, borderRadius:9, border:`1px solid ${CL.sand}` }}>
-                <span style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13, color:CL.ink }}>{r.itemType}{r.height ? ` · ${r.height}` : ''}</span>
-                <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12.5, color:CL.walnut }}>{m.qty} {unitLabel(m.unit, m.qty)}{m.stock ? ` · ${m.stock}` : ''}</span>
+                <span style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13, color:CL.ink, display:'flex', alignItems:'center', gap:5 }}>
+                  {r.itemType}
+                  {editable ? (
+                    <>
+                      <span style={{ color:CL.ironLt }}>·</span>
+                      <input value={r.height || ''} onChange={e => editHeight(i, e.target.value)} placeholder="height"
+                        title="Cabinet height — drives filler stock length"
+                        style={{ width:54, fontFamily:CL.mono, fontSize:12, color:CL.walnut, background:CL.paper, border:`1px solid ${CL.sand}`, borderRadius:6, padding:'1px 5px' }} />
+                    </>
+                  ) : (r.height ? <span style={{ color:CL.iron, fontWeight:500 }}>· {r.height}</span> : null)}
+                </span>
+                <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12.5, color:CL.walnut, whiteSpace:'nowrap' }}>{m.qty} {unitLabel(m.unit, m.qty)}{m.stock ? ` · ${m.stock}` : ''}</span>
                 {needsAdd
                   ? <span style={{ fontFamily:CL.ui, fontWeight:700, fontSize:11, color:CL.ember, background:'rgba(191,85,39,0.12)', padding:'3px 8px', borderRadius:999 }}>+ Add</span>
                   : <Icon d={ICN.check} size={15} color={CL.match} stroke={2.6} />}
               </div>
             )
           })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────── Design review card ── */
+const SEV = { high: { c: '#A6391F', bg: 'rgba(166,57,31,0.12)', t: 'High' }, medium: { c: '#BF5527', bg: 'rgba(191,85,39,0.12)', t: 'Med' }, low: { c: '#6E6155', bg: 'rgba(110,97,85,0.10)', t: 'Low' } }
+const NOTE_LABEL = { crown: 'Crown', hinge: 'Hinge side', exposed_back: 'Exposed back', color: 'Color codes' }
+
+function DesignReviewCard({ review }) {
+  const issues = review?.issues || []
+  const notes  = review?.estimateNotes || []
+  const clean  = issues.length === 0 && notes.length === 0
+  return (
+    <div style={{ ...CARD, padding:18 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:4 }}>
+        <Icon d={ICN.search} size={17} color={CL.oak} stroke={2} />
+        <h3 style={{ margin:0, fontFamily:CL.ui, fontWeight:700, fontSize:15, color:CL.ink, whiteSpace:'nowrap' }}>Design review</h3>
+        <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:11.5, color:CL.iron }}>{issues.length} issue{issues.length===1?'':'s'}</span>
+      </div>
+      <p style={{ margin:'0 0 13px', fontFamily:CL.ui, fontSize:12.5, color:CL.iron, lineHeight:1.5 }}>
+        AI design-bot check — common mistakes and estimate notes.
+      </p>
+
+      {clean && <div style={{ fontFamily:CL.ui, fontSize:12.5, color:CL.match, padding:'8px 0', fontWeight:600 }}>✓ No design issues flagged.</div>}
+
+      {issues.length > 0 && (
+        <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom: notes.length ? 14 : 0 }}>
+          {issues.map((it, i) => {
+            const s = SEV[String(it.severity || 'low').toLowerCase()] || SEV.low
+            return (
+              <div key={i} style={{ padding:'9px 11px', background:CL.cream, borderRadius:9, border:`1px solid ${CL.sand}`, borderLeft:`3px solid ${s.c}` }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:2 }}>
+                  <span style={{ fontFamily:CL.ui, fontWeight:700, fontSize:12.5, color:CL.ink }}>{it.title}</span>
+                  <span style={{ marginLeft:'auto', fontFamily:CL.ui, fontWeight:700, fontSize:10, color:s.c, background:s.bg, padding:'2px 7px', borderRadius:999, textTransform:'uppercase', letterSpacing:'0.04em' }}>{s.t}</span>
+                </div>
+                <div style={{ fontFamily:CL.ui, fontSize:12, color:CL.iron, lineHeight:1.5 }}>{it.detail}</div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {notes.length > 0 && (
+        <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+          <div style={{ fontFamily:CL.ui, fontWeight:700, fontSize:10.5, color:CL.iron, letterSpacing:'0.07em', textTransform:'uppercase', margin:'2px 0' }}>Estimate notes</div>
+          {notes.map((n, i) => (
+            <div key={i} style={{ display:'flex', gap:9, padding:'7px 0', borderTop: i ? `1px solid ${CL.sand}` : 'none' }}>
+              <span style={{ flex:'0 0 88px', fontFamily:CL.ui, fontWeight:700, fontSize:11.5, color:CL.oak }}>{NOTE_LABEL[n.category] || n.title}</span>
+              <span style={{ fontFamily:CL.ui, fontSize:12, color:CL.iron, lineHeight:1.5 }}>{n.detail || n.title}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
