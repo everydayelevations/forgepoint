@@ -516,13 +516,38 @@ function VTable({ items, openRow, setOpenRow }) {
 /* ─────────────────────────────────────────── Trim card ── */
 const unitLabel = (u) => ({ LF: 'lineal ft', EA: 'ea', IN: 'in' }[String(u || '').toUpperCase()] || u || '')
 
+// Convert a trim row into the chosen display unit. Only lineal-foot runs
+// convert (feet ↔ inches, ×12); discrete EA pieces are shown as-is.
+function displayMeasure(row, mode) {
+  const u = String(row.unit || '').toUpperCase()
+  if (u === 'LF' && mode === 'IN') return { qty: +(row.suggestedQty * 12).toFixed(1), unit: 'IN' }
+  return { qty: row.suggestedQty, unit: row.unit }
+}
+
+function UnitToggle({ mode, setMode }) {
+  const opts = [['LF', 'ft'], ['IN', 'in']]
+  return (
+    <div style={{ marginLeft:'auto', display:'flex', gap:2, padding:2, background:CL.cream, border:`1px solid ${CL.sand}`, borderRadius:999 }}>
+      {opts.map(([val, lbl]) => {
+        const active = mode === val
+        return (
+          <button key={val} onClick={() => setMode(val)} style={{ cursor:'pointer', border:'none', borderRadius:999, padding:'3px 11px', fontFamily:CL.ui, fontWeight:700, fontSize:11, color: active ? CL.cream : CL.iron, background: active ? CL.oak : 'transparent', transition:'background .15s' }}>{lbl}</button>
+        )
+      })}
+    </div>
+  )
+}
+
 function TrimCard({ trim }) {
   const rows = trim?.trimSuggestions || []
+  const [mode, setMode] = useState('LF')
+  const hasLinear = rows.some(r => String(r.unit || '').toUpperCase() === 'LF')
   return (
     <div style={{ ...CARD, padding:18 }}>
       <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:4 }}>
         <Icon d={ICN.layers} size={17} color={CL.oak} stroke={2} />
         <h3 style={{ margin:0, fontFamily:CL.ui, fontWeight:700, fontSize:15, color:CL.ink, whiteSpace:'nowrap' }}>Suggested trim</h3>
+        {hasLinear && <UnitToggle mode={mode} setMode={setMode} />}
       </div>
       <p style={{ margin:'0 0 13px', fontFamily:CL.ui, fontSize:12.5, color:CL.iron, lineHeight:1.5 }}>
         {trim?.layoutNotes ? trim.layoutNotes.slice(0, 120) : 'Quantities in lineal feet, derived from the layout perimeter and cabinet runs.'}
@@ -533,10 +558,11 @@ function TrimCard({ trim }) {
         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
           {rows.map((r, i) => {
             const needsAdd = r.status && r.status !== 'ok'
+            const m = displayMeasure(r, mode)
             return (
               <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:CL.cream, borderRadius:9, border:`1px solid ${CL.sand}` }}>
                 <span style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13, color:CL.ink }}>{r.itemType}{r.height ? ` · ${r.height}` : ''}</span>
-                <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12.5, color:CL.walnut }}>{r.suggestedQty} {unitLabel(r.unit)}</span>
+                <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12.5, color:CL.walnut }}>{m.qty} {unitLabel(m.unit)}</span>
                 {needsAdd
                   ? <span style={{ fontFamily:CL.ui, fontWeight:700, fontSize:11, color:CL.ember, background:'rgba(191,85,39,0.12)', padding:'3px 8px', borderRadius:999 }}>+ Add</span>
                   : <Icon d={ICN.check} size={15} color={CL.match} stroke={2.6} />}
