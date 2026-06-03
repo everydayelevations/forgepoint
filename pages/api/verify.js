@@ -37,8 +37,8 @@ async function extractFromUrl(url, docType) {
 async function calcTrim(designText, designItems, invoiceItems) {
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514', max_tokens: 1500,
-    system: `Cabinet trim specialist. Return ONLY valid JSON: { "trimSuggestions": [{ "itemType": "Toe Kick", "unit": "LF", "suggestedQty": 18, "height": "3.5in", "invoicedQty": 1, "status": "ok", "note": "" }], "layoutNotes": "string" }`,
-    messages: [{ role: 'user', content: `Design:\n${designText}\n\nCabinets: ${designItems.filter(i=>i.itemType==='cabinet').map(i=>`${i.sku} x${i.qty} [${i.section}]`).join(', ')}\n\nInvoiced trim: ${invoiceItems.filter(i=>i.itemType==='trim').map(i=>`${i.sku} x${i.qty}`).join(', ')||'none'}\n\nCalculate: toe kick LF, crown molding LF+height, light rail, scribe, filler panels, end panels.` }]
+    system: `Cabinet trim specialist. Express every linear trim run in LINEAL FEET (unit "LF"), rounded up to the nearest whole foot. Only discrete piece-count items (filler panels, end panels) may use unit "EA". Return ONLY valid JSON: { "trimSuggestions": [{ "itemType": "Toe Kick", "unit": "LF", "suggestedQty": 18, "height": "3.5in", "invoicedQty": 1, "status": "ok", "note": "" }], "layoutNotes": "string" }`,
+    messages: [{ role: 'user', content: `Design:\n${designText}\n\nCabinets: ${designItems.filter(i=>i.itemType==='cabinet').map(i=>`${i.sku} x${i.qty} [${i.section}]`).join(', ')}\n\nInvoiced trim: ${invoiceItems.filter(i=>i.itemType==='trim').map(i=>`${i.sku} x${i.qty}`).join(', ')||'none'}\n\nCalculate as LINEAL FEET (round up to whole feet): toe kick, crown molding (+height), light rail, scribe, outside corner molding. Filler panels and end panels: report as EA.` }]
   })
   const raw = response.content[0].text.replace(/```json|```/g, '').trim()
   try { return JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}')+1)) }

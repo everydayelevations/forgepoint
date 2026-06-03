@@ -514,6 +514,8 @@ function VTable({ items, openRow, setOpenRow }) {
 }
 
 /* ─────────────────────────────────────────── Trim card ── */
+const unitLabel = (u) => ({ LF: 'lineal ft', EA: 'ea', IN: 'in' }[String(u || '').toUpperCase()] || u || '')
+
 function TrimCard({ trim }) {
   const rows = trim?.trimSuggestions || []
   return (
@@ -523,7 +525,7 @@ function TrimCard({ trim }) {
         <h3 style={{ margin:0, fontFamily:CL.ui, fontWeight:700, fontSize:15, color:CL.ink, whiteSpace:'nowrap' }}>Suggested trim</h3>
       </div>
       <p style={{ margin:'0 0 13px', fontFamily:CL.ui, fontSize:12.5, color:CL.iron, lineHeight:1.5 }}>
-        {trim?.layoutNotes ? trim.layoutNotes.slice(0, 120) : 'Derived from the layout perimeter and cabinet runs.'}
+        {trim?.layoutNotes ? trim.layoutNotes.slice(0, 120) : 'Quantities in lineal feet, derived from the layout perimeter and cabinet runs.'}
       </p>
       {rows.length === 0 ? (
         <div style={{ fontFamily:CL.ui, fontSize:12.5, color:CL.iron, padding:'10px 0' }}>No trim suggestions.</div>
@@ -534,7 +536,7 @@ function TrimCard({ trim }) {
             return (
               <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:CL.cream, borderRadius:9, border:`1px solid ${CL.sand}` }}>
                 <span style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13, color:CL.ink }}>{r.itemType}{r.height ? ` · ${r.height}` : ''}</span>
-                <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12.5, color:CL.walnut }}>{r.suggestedQty} {r.unit}</span>
+                <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12.5, color:CL.walnut }}>{r.suggestedQty} {unitLabel(r.unit)}</span>
                 {needsAdd
                   ? <span style={{ fontFamily:CL.ui, fontWeight:700, fontSize:11, color:CL.ember, background:'rgba(191,85,39,0.12)', padding:'3px 8px', borderRadius:999 }}>+ Add</span>
                   : <Icon d={ICN.check} size={15} color={CL.match} stroke={2.6} />}
