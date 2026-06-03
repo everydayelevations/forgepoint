@@ -514,9 +514,25 @@ function VTable({ items, openRow, setOpenRow }) {
 }
 
 /* ─────────────────────────────────────────── Trim card ── */
-// Trim/moldings are stocked in 8-foot sticks; order with a 20% waste factor.
+// Moldings stock in 8-foot sticks; fillers stock by cabinet height —
+// wall/base in 30/36/42" sticks, tall (pantry/oven) in 96" sticks.
+// All ordered with a 20% waste factor.
 const STICK_FT = 8, WASTE = 1.2
-const sticksFromLF = (lf) => Math.ceil((lf / STICK_FT) * WASTE)
+const isFiller = (row) => /filler/i.test(row?.itemType || '')
+const heightIn = (row) => parseFloat(String(row?.height || '').replace(/[^0-9.]/g, '')) || 0
+
+// Stock length (inches) for a filler, given the cabinet height it serves.
+function fillerStockIn(row) {
+  const h = heightIn(row)
+  const tall = /tall|pantry|oven/i.test(row?.itemType || '')
+  if (tall || h > 42) return 96
+  return [30, 36, 42].find(L => L >= h) || 42
+}
+// Stick length (feet) a row is ordered in: fillers vary, everything else 8'.
+const stockFt = (row) => isFiller(row) ? fillerStockIn(row) / 12 : STICK_FT
+const sticksFor = (row) => Math.ceil((row.suggestedQty / stockFt(row)) * WASTE)
+const stockLabel = (row) => isFiller(row) ? `${fillerStockIn(row)}"` : `${STICK_FT}'`
+
 const unitLabel = (u, qty) => {
   const k = String(u || '').toUpperCase()
   if (k === 'STK') return qty === 1 ? 'stick' : 'sticks'
@@ -524,11 +540,11 @@ const unitLabel = (u, qty) => {
 }
 
 // Convert a trim row into the chosen display unit. Only lineal-foot runs
-// convert (feet ↔ inches ×12, or 8-ft sticks); discrete EA pieces are as-is.
+// convert (feet ↔ inches ×12, or sticks); discrete EA pieces are as-is.
 function displayMeasure(row, mode) {
   const u = String(row.unit || '').toUpperCase()
   if (u === 'LF' && mode === 'IN')  return { qty: +(row.suggestedQty * 12).toFixed(1), unit: 'IN' }
-  if (u === 'LF' && mode === 'STK') return { qty: sticksFromLF(row.suggestedQty), unit: 'STK' }
+  if (u === 'LF' && mode === 'STK') return { qty: sticksFor(row), unit: 'STK', stock: stockLabel(row) }
   return { qty: row.suggestedQty, unit: row.unit }
 }
 
@@ -570,7 +586,7 @@ function TrimCard({ trim }) {
             return (
               <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:CL.cream, borderRadius:9, border:`1px solid ${CL.sand}` }}>
                 <span style={{ fontFamily:CL.ui, fontWeight:600, fontSize:13, color:CL.ink }}>{r.itemType}{r.height ? ` · ${r.height}` : ''}</span>
-                <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12.5, color:CL.walnut }}>{m.qty} {unitLabel(m.unit, m.qty)}</span>
+                <span style={{ marginLeft:'auto', fontFamily:CL.mono, fontSize:12.5, color:CL.walnut }}>{m.qty} {unitLabel(m.unit, m.qty)}{m.stock ? ` · ${m.stock}` : ''}</span>
                 {needsAdd
                   ? <span style={{ fontFamily:CL.ui, fontWeight:700, fontSize:11, color:CL.ember, background:'rgba(191,85,39,0.12)', padding:'3px 8px', borderRadius:999 }}>+ Add</span>
                   : <Icon d={ICN.check} size={15} color={CL.match} stroke={2.6} />}
