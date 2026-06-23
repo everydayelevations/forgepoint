@@ -24,7 +24,7 @@ Return ONLY valid JSON, no markdown:
 
 async function extractFromUrl(url, docType) {
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514', max_tokens: 4000, system: EXTRACT_SYSTEM,
+    model: 'claude-sonnet-4-6', max_tokens: 4000, system: EXTRACT_SYSTEM,
     messages: [{ role: 'user', content: [
       { type: 'document', source: { type: 'url', url } },
       { type: 'text', text: `Document type hint: ${docType}. Extract all cabinet line items.` }
@@ -36,7 +36,7 @@ async function extractFromUrl(url, docType) {
 
 async function calcTrim(designText, designItems, invoiceItems) {
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514', max_tokens: 1500,
+    model: 'claude-sonnet-4-6', max_tokens: 1500,
     system: `Cabinet trim specialist. Express every linear trim run in LINEAL FEET (unit "LF"), rounded up to the nearest whole foot. Fillers are also LF: name them by the cabinet they serve — "Base Filler", "Wall Filler", or "Tall Filler" (pantry/oven) — and set "height" to that cabinet's height in inches (base ≈ 34.5in, wall = its height e.g. 30/36/42in, tall = 96in), because filler stock length depends on it. Only end panels use unit "EA". Return ONLY valid JSON: { "trimSuggestions": [{ "itemType": "Toe Kick", "unit": "LF", "suggestedQty": 18, "height": "3.5in", "invoicedQty": 1, "status": "ok", "note": "" }], "layoutNotes": "string" }`,
     messages: [{ role: 'user', content: `Design:\n${designText}\n\nCabinets: ${designItems.filter(i=>i.itemType==='cabinet').map(i=>`${i.sku} x${i.qty} [${i.section}]`).join(', ')}\n\nInvoiced trim: ${invoiceItems.filter(i=>i.itemType==='trim').map(i=>`${i.sku} x${i.qty}`).join(', ')||'none'}\n\nCalculate as LINEAL FEET (round up to whole feet): toe kick, crown molding (+height), light rail, scribe, outside corner molding, and fillers. For fillers, split by cabinet class (Base / Wall / Tall) and set height to the cabinet height in inches. End panels: report as EA.` }]
   })
@@ -53,7 +53,7 @@ async function reviewDesign(designText, designItems) {
   const appliances = designItems.filter(i => i.itemType === 'appliance').map(i => i.sku).join(', ') || 'none'
   const trim       = designItems.filter(i => i.itemType === 'trim').map(i => i.description || i.sku).join(', ') || 'none'
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514', max_tokens: 1600,
+    model: 'claude-sonnet-4-6', max_tokens: 1600,
     system: `You are a senior kitchen designer reviewing a cabinet DESIGN (no invoice) for an estimator. Catch common mistakes and surface things that change the estimate. Return ONLY valid JSON:
 { "issues": [{ "category": "filler"|"appliance"|"layout", "severity": "high"|"medium"|"low", "title": "string", "detail": "string" }],
   "estimateNotes": [{ "category": "crown"|"hinge"|"exposed_back"|"color", "title": "string", "detail": "string" }] }
